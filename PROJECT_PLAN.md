@@ -231,90 +231,105 @@ Build every screen against the fake repositories first; switching to real data i
 
 ## 6. Git workflow
 
-One task = one issue = one branch = one pull request into `main`. Every PR gets a review from the other person before it is merged. Nobody pushes to `main` directly.
+The teammate merges frontend work into `develop` without review. Artem reviews `develop` before it reaches `main`. Artem's backend work goes straight to `main`. Nobody pushes to `main` directly.
 
 ### Branches
 
-| Branch | Purpose | Who merges into it |
+| Branch | Purpose | How changes get in |
 | --- | --- | --- |
-| `main` | Always builds and runs; this is what we demo and submit | Only through reviewed PRs |
-| `feature/<ID>-<short-name>` | One task, e.g. `feature/F2-ticket-flow`, `feature/B2-media-upload` | Its author |
-| `fix/<short-name>` | A bug fix, e.g. `fix/rotation-loses-form` | Its author |
+| `main` | Reviewed, demo-ready code; this is what we submit | PR `develop` → `main` reviewed by Artem, or Artem's backend PRs |
+| `develop` | Frontend integration branch; the repository's default branch | Teammate's feature PRs, merged by the teammate without review; syncs from `main` |
+| `feature/F<n>-<short-name>` | One frontend task, e.g. `feature/F2-ticket-flow` | Teammate → `develop` |
+| `feature/B<n>-<short-name>` | One backend task, e.g. `feature/B2-media-upload` | Artem → `main` |
+| `fix/<short-name>` | A bug fix | Frontend → `develop`, backend → `main` |
 
-A large task may be split into several branches and PRs (`feature/F3-operator-panel`, `feature/F3-categories`), each closing part of the issue.
+Merge methods (they matter, the wrong one breaks the next sync):
 
-### Task flow
+| From → to | Method |
+| --- | --- |
+| `feature/F*` → `develop` | Squash and merge |
+| `feature/B*` → `main` | Squash and merge |
+| `develop` → `main` | **Create a merge commit** (never squash) |
+| `main` → `develop` | `git merge` locally, then push |
 
-1. Pick an issue assigned to you and move it to "In progress" (or comment that you started).
-2. Start from the latest `main`:
+### Frontend flow (teammate)
+
+1. Start from the latest `develop`:
 
    ```bash
-   git switch main
+   git switch develop
    git pull
    git switch -c feature/F1-auth-screens
    ```
 
-3. Work and commit in small steps. Commit messages are English, imperative, prefixed with the task ID:
+2. Work and commit in small steps. Commit messages are English, imperative, prefixed with the task ID:
 
    ```bash
    git add -A
    git commit -m "F1: Add sign-in screen with validation"
    ```
 
-4. Push the branch and open a PR into `main` the same day, even if the task is not finished (mark it as draft):
+3. Before merging, check that `./gradlew assembleDebug` passes and the app runs. `develop` must always build.
+4. Push and open a PR into `develop`, then merge it yourself with **Squash and merge**. No review is needed:
 
    ```bash
    git push -u origin feature/F1-auth-screens
-   gh pr create --base main --draft --title "F1: Auth and profile screens" --body "Closes #<issue number>"
+   gh pr create --base develop --title "F1: Auth and profile screens" --body "Closes #8"
+   gh pr merge --squash
    ```
 
-5. When the task is done, check the PR checklist below, then mark the PR "Ready for review". The reviewer is requested automatically through `.github/CODEOWNERS` (or add them with `gh pr edit --add-reviewer <login>`).
-6. The reviewer reviews the same day: approve, or "Request changes" with comments.
-7. The author fixes review comments with new commits in the same branch and pushes; the PR updates by itself. Do not open a new PR.
-8. After approval the author merges with **Squash and merge**. The branch is deleted automatically and the issue closes through `Closes #N`.
-9. Switch back to `main`, `git pull`, start the next task.
+   The branch is deleted and the issue closes automatically (`develop` is the default branch).
+5. Every evening, or whenever a feature is ready to show, open a PR from `develop` into `main` (if one is not open already):
 
-### Reviews
+   ```bash
+   gh pr create --base main --head develop --title "Frontend update: <date>"
+   ```
 
-- Reviewer for frontend PRs: Artem (`artemsnigur`). Reviewer for backend PRs: the teammate (`Musababa123-code`).
-- Review target: within a few hours during the day. If a backend PR waits more than 2 hours and blocks work, Artem may merge it after a successful local build and ask for a review afterwards.
-- The reviewer checks: it builds, it follows the screen pattern (stateful Route + stateless Screen), no Firebase calls in `ui/`, no hardcoded user-facing strings, no unrelated changes.
-- Any change to `data/model/` or `data/repository/` interfaces needs explicit approval from both of us, because it breaks the other side.
+   Artem is requested automatically and reviews it. Fixes go in as new `fix/` or `feature/` branches merged into `develop`; the open PR updates by itself. Artem merges it with **Create a merge commit**.
 
-### PR checklist
+### Backend flow (Artem)
 
-- [ ] `./gradlew assembleDebug` passes locally.
-- [ ] The app runs and the changed screens work in portrait and landscape.
-- [ ] All new strings exist in `values/strings.xml` and `values-pt/strings.xml`.
-- [ ] UI PRs include a screenshot in the description.
-- [ ] The PR body links the issue (`Closes #N`).
+1. Branch from the latest `main`: `git switch main && git pull && git switch -c feature/B2-media-upload`.
+2. Open a PR into `main`. A review from the teammate is welcome but not required; Artem merges it himself with **Squash and merge** (admin bypass of the approval rule).
+3. Close the issue by hand (`gh issue close <n>`): closing keywords only work for PRs into the default branch (`develop`).
+4. Tell the teammate, so the backend change reaches `develop` (next section).
 
-### Keeping the branch up to date
+### Keeping branches in sync
 
-If `main` moved while you work (for example, the other person merged), bring the changes into your branch with a merge (not a rebase):
+Backend changes reach the frontend by merging `main` into `develop`. Whoever needs them does it (usually the teammate, after Artem says a backend PR is merged):
 
 ```bash
-git switch main
+git switch develop
 git pull
-git switch feature/F1-auth-screens
-git merge main
+git merge origin/main
+./gradlew assembleDebug
+git push
 ```
 
-If there are conflicts, resolve them in Android Studio (Git → Resolve Conflicts), build, commit and push. When unsure, stop and ask before resolving conflicts in files you do not own.
+To bring `develop` into your own feature branch: `git switch feature/F1-auth-screens && git merge develop`.
+
+If there are conflicts, resolve them in Android Studio (Git → Resolve Conflicts), build, commit and push. In files you do not own, ask before resolving.
+
+### Review of `develop` → `main` (Artem)
+
+- It builds and runs; the screens follow the pattern (stateful Route + stateless Screen).
+- No Firebase calls in `ui/`; no hardcoded user-facing strings; EN and PT strings present.
+- No changes to `data/model/` or `data/repository/` interfaces without prior agreement.
+- Problems → "Request changes" with comments; the teammate fixes them in `develop` through new branches.
 
 ### Rules
 
-- Never push to `main`, never `git push --force` on a branch someone else uses.
-- Keep PRs small: ideally under one day of work and a few hundred lines.
+- Never push to `main`; never `git push --force` to `main` or `develop`.
+- `develop` must always build: run `./gradlew assembleDebug` before every merge into it.
 - Commit `google-services.json` (needed to build the submitted ZIP). Never commit `local.properties`, `.gradle/`, `build/` or keystores.
-- After the feature freeze (Sat 2026-11-21 evening) only `fix/` branches are merged.
+- After the feature freeze (Sat 2026-11-21 evening) only `fix/` branches are merged, and the final `develop` → `main` PR is merged by Sat night.
 
-### Repository setup (Artem, once)
+### Repository settings (done)
 
-- Settings → General: allow only squash merging, enable "Automatically delete head branches".
-- Settings → Branches: protect `main` (require a pull request with 1 approval, block force pushes).
-- `.github/CODEOWNERS`: Artem owns everything by default (so frontend PRs request him automatically); `data/`, `model/`, `worker/` and the security rules are owned by the teammate (so backend PRs request him).
-- `.github/pull_request_template.md` pre-fills every PR with the checklist above.
+- Default branch: `develop`. Squash merge and merge commits allowed, rebase merge disabled; head branches are deleted after merge.
+- `main` is protected: PR with 1 approval required (admins may bypass), no force pushes, no deletion.
+- `develop` is protected only against force pushes and deletion; no PR or review required.
+- `.github/CODEOWNERS` requests Artem on PRs into `main`; `.github/pull_request_template.md` pre-fills the checklist.
 
 ## 7. Schedule
 
@@ -326,13 +341,13 @@ If there are conflicts, resolve them in Android Studio (Git → Resolve Conflict
 | Sun 2026-11-22, 18:00 | Testing, report and packaging done |
 | Sun 2026-11-22, 23:59 | Submission deadline |
 
-Each evening: merge to `main`, run the app, close finished issues.
+Each evening: open or update the `develop` → `main` PR, sync `main` into `develop`, run the app.
 
 ## 8. Risks
 
 | Risk | Fallback |
 | --- | --- |
-| Integration on 2026-11-19 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces |
+| Integration on 2026-11-19 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces; sync `main` into `develop` daily |
 | Security rules block legitimate flows late | Write rules on Fri 20 against finished flows; test with the emulator or the Rules Playground |
 | Blaze billing setup is delayed | Start it on day 0; meanwhile keep media local and the worker ready |
 | Upload worker or offline sync misbehaves in the demo | Airplane-mode test on Fri 20; seed demo data the night before |
