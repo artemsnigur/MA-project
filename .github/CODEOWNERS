@@ -1,0 +1,10 @@
+# Review requests are assigned automatically from this file.
+# Default: Artem reviews everything not matched below.
+*                                                    @artemsnigur
+
+# Backend code is reviewed by the frontend teammate.
+/app/src/main/java/com/example/cityfixmaas/data/     @Musababa123-code
+/app/src/main/java/com/example/cityfixmaas/model/    @Musababa123-code
+/app/src/main/java/com/example/cityfixmaas/worker/   @Musababa123-code
+/firestore.rules                                     @Musababa123-code
+/storage.rules                                       @Musababa123-code
