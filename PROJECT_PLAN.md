@@ -1,6 +1,6 @@
 # CityFix — P0 Implementation Plan
 
-As of 2026-11-16. Submission deadline: **2026-11-22 at 23:59** (5% penalty per hour late). See `PROJECT_REQUIREMENTS.md` for the full scope.
+As of 2026-11-17. Submission deadline: **2026-11-22 at 23:59** (5% penalty per hour late). See `PROJECT_REQUIREMENTS.md` for the full scope.
 
 Tasks are tracked as GitHub issues. Task IDs below (B0–B4, F0–F4) match the issue titles.
 
@@ -12,16 +12,17 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 
 - Email/password sign-in, password reset by email, Citizen and Operator registration, pending Citizen activation by an Operator.
 - Category management by Operators; Citizens see active categories only.
-- Ticket creation with photos: local compression, thumbnail, upload via WorkManager (`NetworkType.CONNECTED`).
+- Ticket creation with photos: local compression, thumbnail, stored as Base64 in Firestore by a WorkManager job (`NetworkType.CONNECTED`).
 - My tickets list, ticket details, Operator panel with all tickets, lifecycle transitions with a timestamped history, ticket messaging.
 - Anonymous mode: 10 km check, dashboard, public list, public details without author data or exact coordinates.
-- Firestore and Storage security rules, offline support (Firestore built-in cache), EN + PT strings, portrait and landscape, MVVM.
+- Firestore security rules, offline support (Firestore built-in cache), EN + PT strings, portrait and landscape, MVVM.
 
-**Out of scope unless P0 is done early (P1/P2):** MFA, reopen within 5 days and auto-close, 24 h reminder, notifications, duplicate aggregation within 10 m, video, 20 m operator geofence, Impact Detection, FCM.
+**Out of scope unless P0 is done early (P1/P2):** video (needs Cloud Storage, i.e. the Blaze plan), MFA, reopen within 5 days and auto-close, 24 h reminder, notifications, duplicate aggregation within 10 m, 20 m operator geofence, Impact Detection, FCM.
 
 ## 2. Architecture decisions
 
-- Backend is Firebase only: Auth, Firestore, Storage, plus WorkManager on the device. No custom server.
+- Backend is Firebase only, on the free Spark plan: Auth and Firestore, plus WorkManager on the device. No custom server.
+- **Photos are stored in Firestore as Base64 JPEG, not in Cloud Storage.** Cloud Storage requires the paid Blaze plan on new projects. Each full photo is its own document (Firestore limit: 1 MiB per document); small thumbnails sit inside the ticket document so lists stay fast. This deviates from the assignment ("upload to Firebase Storage") and must be explained in the report.
 - UI never calls Firebase directly: Compose screens → ViewModels → repository interfaces.
 - Dependency wiring through a manual `AppContainer` (no Hilt). Fakes and Firebase implementations share the same interfaces; switching is one line.
 
@@ -37,17 +38,18 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 
 | Path | Holds | Readable by |
 | --- | --- | --- |
-| `users/{uid}` | role, status (PENDING / ACTIVE), name, email, phone, nif, location, photoUrl, impactDetectionEnabled | owner, operators |
+| `users/{uid}` | role, status (PENDING / ACTIVE), name, email, phone, nif, location, photoBase64, impactDetectionEnabled | owner, operators |
 | `nifs/{ROLE_nif}` | uid; makes NIF unique per role | nobody (create only if absent) |
 | `categories/{id}` | name, active | everyone |
-| `tickets/{id}` | authorIds, categoryId, incidentType, lifecycleState, publicScope, lat/lng, description, media, timestamps | authors, operators |
+| `tickets/{id}` | authorIds, categoryId, incidentType, lifecycleState, publicScope, location, description, media (refs with ~200 px Base64 thumbnails and upload state), timestamps | authors, operators |
+| `tickets/{id}/media/{id}` | imageBase64 (JPEG, max 1280 px, ~400 KB as Base64), phase (REPORT / RESOLUTION), createdAt | authors, operators; everyone if the ticket is public |
 | `tickets/{id}/history/{id}` | from, to, byUid, at, note | authors, operators |
 | `tickets/{id}/messages/{id}` | senderUid, senderRole, text, sentAt | authors, operators |
-| `publicTickets/{id}` | categoryName, incidentType, lifecycleState, thumbnailUrl, rounded location, createdAt, resolvedAt | everyone, including anonymous |
+| `publicTickets/{id}` | categoryId, incidentType, lifecycleState, thumbnailBase64, rounded location, createdAt, resolvedAt | everyone, including anonymous |
 
 ### Rules
 
-- A ticket counts as submitted once its Firestore document is written. Media upload runs afterwards with `uploadState` PENDING / DONE / FAILED; the UI shows that state with a retry action.
+- A ticket counts as submitted once its Firestore document is written. Photo processing (compress, encode, write to `media`) runs afterwards in WorkManager with `uploadState` PENDING / DONE / FAILED; the UI shows that state with a retry action.
 - Ticket creation is a batch write (ticket + `publicTickets` + first history entry), never a transaction, because transactions fail offline.
 - `publicTickets` is the only ticket data anonymous users read. It has no author data and coordinates rounded to about 1 km.
 - Operator registration is allowed only for emails in the municipal domain, checked in the app and in security rules. The domain is a constant.
@@ -56,100 +58,25 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 
 ## 3. Shared contract
 
-Model rules: every field has a default value (Firestore `toObject()` needs a no-arg constructor), no `is` prefix on booleans, no `@Serializable`, enums stored as strings.
+The code is the source of truth; this section only says where it lives.
 
-```kotlin
-enum class UserRole { CITIZEN, OPERATOR }
-enum class AccountStatus { PENDING, ACTIVE }
-enum class IncidentType { DAMAGE, BREAKDOWN, DESTRUCTION, THEFT }
-enum class LifecycleState { OPEN, INFORMATION_REQUEST, IN_RESOLUTION, RESOLVED, CLOSED }
-enum class UploadState { PENDING, DONE, FAILED }
-enum class MediaPhase { REPORT, RESOLUTION }
+| File | Contents |
+| --- | --- |
+| `data/model/Enums.kt` | `UserRole`, `AccountStatus`, `IncidentType`, `LifecycleState` (with `isActive` and `allowedNext()`), `UploadState`, `MediaPhase` |
+| `data/model/Models.kt` | `User`, `Category`, `Ticket`, `MediaRef`, `MediaContent`, `PublicTicket`, `StateChange`, `Message`, `DashboardStats`, `LatLng`; UI inputs `TicketDraft`, `RegistrationForm`; `SessionState` (Loading / Anonymous / SignedIn) |
+| `data/repository/Repositories.kt` | `AuthRepository`, `UserAdminRepository`, `CategoryRepository`, `TicketRepository`, `MediaRepository`, `PublicRepository`, `MessageRepository`, `LocationProvider` |
+| `data/fake/` | In-memory implementations with demo data (accounts: `ana@cm-coimbra.pt` operator, `rui@example.com` citizen, `marta@example.com` pending; password `password`) |
+| `di/AppContainer.kt` | Which implementation each repository uses; `CreationExtras.appContainer()` for ViewModel factories |
+| `data/AppConfig.kt` | Anonymous-area center and radius, municipal email domain, distance and rounding helpers |
+| `data/media/Base64Images.kt` | `base64ToBitmap()` for showing stored photos |
 
-data class User(val id: String = "", val role: UserRole = UserRole.CITIZEN, val status: AccountStatus = AccountStatus.PENDING,
-    val name: String = "", val email: String = "", val phone: String = "", val nif: String = "",
-    val latitude: Double? = null, val longitude: Double? = null, val photoUrl: String? = null,
-    val impactDetectionEnabled: Boolean = false)
+Model rules: every field has a default value (Firestore `toObject()` needs a no-arg constructor), no `is` prefix on stored booleans, no `@Serializable`, enums stored as strings.
 
-data class Category(val id: String = "", val name: String = "", val active: Boolean = true)
-
-data class MediaItem(val id: String = "", val url: String? = null, val thumbnailUrl: String? = null,
-    val video: Boolean = false, val phase: MediaPhase = MediaPhase.REPORT, val uploadState: UploadState = UploadState.PENDING)
-
-data class Ticket(val id: String = "", val authorIds: List<String> = emptyList(), val categoryId: String = "",
-    val incidentType: IncidentType = IncidentType.DAMAGE, val lifecycleState: LifecycleState = LifecycleState.OPEN,
-    val publicScope: Boolean = true, val description: String = "", val latitude: Double = 0.0, val longitude: Double = 0.0,
-    val media: List<MediaItem> = emptyList(), val createdAt: Long = 0, val updatedAt: Long = 0, val resolvedAt: Long? = null)
-
-data class PublicTicket(val id: String = "", val categoryName: String = "", val incidentType: IncidentType = IncidentType.DAMAGE,
-    val lifecycleState: LifecycleState = LifecycleState.OPEN, val thumbnailUrl: String? = null,
-    val approxLatitude: Double = 0.0, val approxLongitude: Double = 0.0, val createdAt: Long = 0, val resolvedAt: Long? = null)
-
-data class StateChange(val from: LifecycleState? = null, val to: LifecycleState = LifecycleState.OPEN,
-    val byUid: String = "", val at: Long = 0, val note: String? = null)
-
-data class Message(val id: String = "", val senderUid: String = "", val senderRole: UserRole = UserRole.CITIZEN,
-    val text: String = "", val sentAt: Long = 0)
-
-data class TicketDraft(val categoryId: String, val incidentType: IncidentType, val description: String,
-    val publicScope: Boolean, val latitude: Double, val longitude: Double, val mediaUris: List<Uri>)
-```
-
-```kotlin
-interface AuthRepository {
-    val currentUser: Flow<User?>                                      // null = anonymous
-    suspend fun signIn(email: String, password: String): Result<Unit>
-    suspend fun registerCitizen(form: RegistrationForm): Result<Unit>  // status PENDING
-    suspend fun registerOperator(form: RegistrationForm): Result<Unit> // status ACTIVE, municipal domain only
-    suspend fun sendPasswordReset(email: String): Result<Unit>
-    suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit>
-    suspend fun signOut()
-}
-
-interface UserAdminRepository {
-    fun observePendingCitizens(): Flow<List<User>>
-    suspend fun activateCitizen(uid: String): Result<Unit>
-}
-
-interface CategoryRepository {
-    fun observeCategories(activeOnly: Boolean): Flow<List<Category>>
-    suspend fun saveCategory(category: Category): Result<Unit>         // create or edit
-    suspend fun setActive(id: String, active: Boolean): Result<Unit>
-}
-
-interface TicketRepository {
-    fun observeMyTickets(): Flow<List<Ticket>>
-    fun observeAllTickets(): Flow<List<Ticket>>                        // operator
-    fun observeTicket(id: String): Flow<Ticket?>
-    fun observeHistory(id: String): Flow<List<StateChange>>
-    suspend fun createTicket(draft: TicketDraft): Result<String>
-    suspend fun changeState(id: String, to: LifecycleState, note: String?): Result<Unit>
-    suspend fun addResolutionMedia(id: String, uris: List<Uri>): Result<Unit>
-    suspend fun retryUploads(id: String)
-}
-
-interface PublicRepository {
-    fun observePublicTickets(): Flow<List<PublicTicket>>
-    fun observePublicTicket(id: String): Flow<PublicTicket?>
-    fun observeDashboard(): Flow<DashboardStats>                       // total, activePercent, avgRepairHours
-}
-
-interface MessageRepository {
-    fun observeMessages(ticketId: String): Flow<List<Message>>
-    suspend fun sendMessage(ticketId: String, text: String): Result<Unit>
-}
-
-interface LocationProvider {
-    suspend fun currentLocation(): LatLng?
-    fun isWithinAnonymousArea(location: LatLng): Boolean               // 10 km from Praça da República
-}
-```
-
-Allowed transitions for `changeState`:
+Allowed transitions (`LifecycleState.allowedNext()`):
 
 - OPEN → INFORMATION_REQUEST or IN_RESOLUTION
 - INFORMATION_REQUEST → OPEN or IN_RESOLUTION
-- IN_RESOLUTION → RESOLVED (requires at least one RESOLUTION media item)
+- IN_RESOLUTION → RESOLVED (requires at least one RESOLUTION photo)
 - RESOLVED → CLOSED
 
 The repository enforces these; the UI only offers the valid ones.
@@ -159,8 +86,8 @@ The repository enforces these; the UI only offers the valid ones.
 **B0 · Setup, contract, fakes (Mon 16)**
 
 - Create the Firebase project, register the Android app, add `google-services.json` and the Google Services plugin.
-- Switch to the Blaze plan with a 1 EUR budget alert (Cloud Storage requires it on new projects).
-- Add dependencies: Firebase BoM (Auth, Firestore, Storage), WorkManager, Coroutines Play Services, Play Services Location, Coil.
+- Enable Email/Password sign-in and create Firestore (test mode) on the free Spark plan.
+- Add dependencies: Firebase BoM (Auth, Firestore), WorkManager, Coroutines Play Services, Play Services Location, Coil, Navigation Compose, lifecycle ViewModel Compose.
 - Fix `model/*.kt` to the shared contract and remove `@Serializable`, so the project builds.
 - Push repository interfaces, in-memory fakes and `AppContainer`.
 
@@ -172,12 +99,12 @@ The repository enforces these; the UI only offers the valid ones.
 - `UserAdminRepository`: pending citizens list, activation.
 - `CategoryRepository` plus seed data: Public Roads, Water, Lighting, Sanitation.
 
-**B2 · Tickets and media upload (Tue 17 – Wed 18)**
+**B2 · Tickets and photos (Tue 17 – Wed 18)**
 
 - `createTicket`: batch write of `tickets`, `publicTickets` and the first history entry; media items start as PENDING.
-- Image pipeline: downscale to max 1920 px, JPEG ~80%, 320 px thumbnail, saved to app storage before upload.
-- `MediaUploadWorker` (WorkManager, `NetworkType.CONNECTED`, exponential backoff): uploads to Storage, writes URLs and DONE/FAILED, updates `publicTickets.thumbnailUrl`.
-- `observeMyTickets`, `observeAllTickets`, `observeTicket`, `retryUploads`.
+- Image pipeline: downscale to max 1280 px, JPEG ~70%, ~200 px thumbnail, both Base64-encoded; check the full image stays under ~700 KB as Base64.
+- `PhotoUploadWorker` (WorkManager, `NetworkType.CONNECTED`, exponential backoff): compresses the picked photos, writes `tickets/{id}/media/{mediaId}`, sets the thumbnail and DONE/FAILED in the ticket, updates `publicTickets.thumbnailBase64`.
+- `observeMyTickets`, `observeAllTickets`, `observeTicket`, `retryUploads`, `MediaRepository.observeMedia`.
 
 **B3 · Lifecycle, messages, public data (Thu 19)**
 
@@ -188,7 +115,7 @@ The repository enforces these; the UI only offers the valid ones.
 **B4 · Security rules and offline (Fri 20)**
 
 - Firestore rules: role and status checks via `get(users/uid)`, owner-only fields, public read only for `categories` and `publicTickets`, no role escalation.
-- Storage rules: signed-in writes to own ticket paths, size and type limits.
+- Rules for `tickets/{id}/media`: authors and operators write; read also allowed for public tickets.
 - Offline test: create a ticket in airplane mode, reconnect, confirm sync and upload.
 - Backend sections of the report: architecture, schema, rules, offline and upload strategy.
 
@@ -240,7 +167,7 @@ The teammate merges frontend work into `develop` without review. Artem reviews `
 | `main` | Reviewed, demo-ready code; this is what we submit | PR `develop` → `main` reviewed by Artem, or Artem's backend PRs |
 | `develop` | Frontend integration branch; the repository's default branch | Teammate's feature PRs, merged by the teammate without review; syncs from `main` |
 | `feature/F<n>-<short-name>` | One frontend task, e.g. `feature/F2-ticket-flow` | Teammate → `develop` |
-| `feature/B<n>-<short-name>` | One backend task, e.g. `feature/B2-media-upload` | Artem → `main` |
+| `feature/B<n>-<short-name>` | One backend task, e.g. `feature/B2-tickets-photos` | Artem → `main` |
 | `fix/<short-name>` | A bug fix | Frontend → `develop`, backend → `main` |
 
 Merge methods (they matter, the wrong one breaks the next sync):
@@ -289,7 +216,7 @@ Merge methods (they matter, the wrong one breaks the next sync):
 
 ### Backend flow (Artem)
 
-1. Branch from the latest `main`: `git switch main && git pull && git switch -c feature/B2-media-upload`.
+1. Branch from the latest `main`: `git switch main && git pull && git switch -c feature/B2-tickets-photos`.
 2. Open a PR into `main`. A review from the teammate is welcome but not required; Artem merges it himself with **Squash and merge** (admin bypass of the approval rule).
 3. Close the issue by hand (`gh issue close <n>`): closing keywords only work for PRs into the default branch (`develop`).
 4. Tell the teammate, so the backend change reaches `develop` (next section).
@@ -349,7 +276,8 @@ Each evening: open or update the `develop` → `main` PR, sync `main` into `deve
 | --- | --- |
 | Integration on 2026-11-19 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces; sync `main` into `develop` daily |
 | Security rules block legitimate flows late | Write rules on Fri 20 against finished flows; test with the emulator or the Rules Playground |
-| Blaze billing setup is delayed | Start it on day 0; meanwhile keep media local and the worker ready |
+| Graders penalise Base64 photos instead of Cloud Storage | Explain the free-plan constraint in the report; if time allows, enable Blaze and move photos/videos to Storage (P1) |
+| A photo exceeds the 1 MiB document limit | Compress harder (lower quality, then smaller size) until the Base64 string is under ~700 KB |
 | Upload worker or offline sync misbehaves in the demo | Airplane-mode test on Fri 20; seed demo data the night before |
 | P0 runs late | Cut order: landscape polish, then dashboard average, then profile photo; never cut the ticket flow |
 
