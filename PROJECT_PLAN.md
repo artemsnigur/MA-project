@@ -1,6 +1,6 @@
 # CityFix — P0 Implementation Plan
 
-As of 2026-11-17. Submission deadline: **2026-11-22 at 23:59** (5% penalty per hour late). See `PROJECT_REQUIREMENTS.md` for the full scope.
+As of 2026-11-18 (re-planned after the review: the frontend has not started yet). Submission deadline: **2026-11-22 at 23:59** (5% penalty per hour late). See `PROJECT_REQUIREMENTS.md` for the full scope.
 
 Tasks are tracked as GitHub issues. Task IDs below (B0–B4, F0–F4) match the issue titles.
 
@@ -17,7 +17,7 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 - Anonymous mode: 10 km check, dashboard, public list, public details without author data or exact coordinates.
 - Firestore security rules, offline support (Firestore built-in cache), EN + PT strings, portrait and landscape, MVVM.
 
-**Out of scope unless P0 is done early (P1/P2):** video (needs Cloud Storage, i.e. the Blaze plan), MFA, reopen within 5 days and auto-close, 24 h reminder, notifications, duplicate aggregation within 10 m, 20 m operator geofence, Impact Detection, FCM.
+**Out of scope unless P0 is done early (P1/P2):** MFA (an explicit requirement for both roles, so first in line for P1), video (needs Cloud Storage, i.e. the Blaze plan), reopen within 5 days and auto-close, 24 h reminder, notifications, duplicate aggregation within 10 m, 20 m operator geofence, Impact Detection, FCM.
 
 ## 2. Architecture decisions
 
@@ -25,6 +25,7 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 - **Photos are stored in Firestore as Base64 JPEG, not in Cloud Storage.** Cloud Storage requires the paid Blaze plan on new projects. Each full photo is its own document (Firestore limit: 1 MiB per document); small thumbnails sit inside the ticket document so lists stay fast. This deviates from the assignment ("upload to Firebase Storage") and must be explained in the report.
 - UI never calls Firebase directly: Compose screens → ViewModels → repository interfaces.
 - Dependency wiring through a manual `AppContainer` (no Hilt). Fakes and Firebase implementations share the same interfaces; switching is one line.
+- Maps use **osmdroid** (OpenStreetMap tiles, no API key) inside `AndroidView`. Google Maps SDK needs a billing account, like Cloud Storage. osmdroid is archived since 2024 but 6.1.20 works; fallback: MapLibre with OSM tiles.
 
 ### Code ownership
 
@@ -34,12 +35,14 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 | `ui/` (screens, navigation, ViewModels, theme), `res/values*/strings.xml`, runtime permissions, photo picker and camera | Frontend (teammate) |
 | Repository interfaces in `data/repository/` | Both; change only after agreement |
 
+UI package layout: one package per feature under `ui/`, e.g. `ui/auth/`, `ui/tickets/`, `ui/operator/`, `ui/publicview/`, each with `XRoute.kt` (stateful, collects the ViewModel), `XScreen.kt` (stateless, with previews) and `XViewModel.kt`. Shared components go to `ui/components/`, navigation to `ui/navigation/`.
+
 ### Firestore schema
 
 | Path | Holds | Readable by |
 | --- | --- | --- |
 | `users/{uid}` | role, status (PENDING / ACTIVE), name, email, phone, nif, location, photoBase64, impactDetectionEnabled | owner, operators |
-| `nifs/{ROLE_nif}` | uid; makes NIF unique per role | nobody (create only if absent) |
+| `nifs/{ROLE_nif}` | uid; makes NIF unique per role | single-document `get` by anyone (pre-check before sign-up), no listing; create only if absent |
 | `categories/{id}` | name, active | everyone |
 | `tickets/{id}` | authorIds, categoryId, incidentType, lifecycleState, publicScope, location, description, media (refs with ~200 px Base64 thumbnails and upload state), timestamps | authors, operators |
 | `tickets/{id}/media/{id}` | imageBase64 (JPEG, max 1280 px, ~400 KB as Base64), phase (REPORT / RESOLUTION), createdAt | authors, operators; everyone if the ticket is public |
@@ -54,7 +57,10 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 - `publicTickets` is the only ticket data anonymous users read. It has no author data and coordinates rounded to about 1 km.
 - Operator registration is allowed only for emails in the municipal domain, checked in the app and in security rules. The domain is a constant.
 - The 10 km center is a constant: Praça da República, Coimbra.
-- Dashboard numbers come from `publicTickets`: total count, share of active tickets, average `resolvedAt - createdAt`.
+- Dashboard numbers come from `publicTickets`: total count, share of active tickets, average `resolvedAt - createdAt`. Anonymous users cannot read private tickets, so the dashboard counts public tickets only; state this in the report.
+- In P0 only operators change the lifecycle state. Citizens talk through messages; citizen reopening is P1.
+- State changes and other ticket edits use field updates (`update("lifecycleState", ...)`), never a full-document overwrite, so concurrent writers do not erase each other.
+- Until the full rules of B4, the database runs with minimal rules from B1 (sign-in required for any write). The repository is public and `google-services.json` names the project, so test mode must not stay on.
 
 ## 3. Shared contract
 
@@ -91,66 +97,69 @@ The repository enforces these; the UI only offers the valid ones.
 - Fix `model/*.kt` to the shared contract and remove `@Serializable`, so the project builds.
 - Push repository interfaces, in-memory fakes and `AppContainer`.
 
-**B1 · Auth, users, categories (Tue 17)**
+**B1 · Auth, users, categories (Wed 18)**
 
-- `FirebaseAuthRepository`: sign in, register Citizen (PENDING) and Operator (ACTIVE), password reset, profile update, sign out.
-- NIF uniqueness through `nifs/{ROLE_nif}` in the same batch as `users/{uid}`.
+- `FirebaseAuthRepository`: sign in, register Citizen (PENDING) and Operator (ACTIVE), password reset, profile update, sign out; `session` emits Loading until Firebase restores the cached user.
+- Registration order: validate the form → `get` `nifs/{ROLE_nif}` (fail early if taken) → create the Auth account → one batch with `users/{uid}` and `nifs/{ROLE_nif}`. If the batch fails, delete the new Auth user so the email is not left blocked.
 - Validation helpers: email, Portuguese phone (9 digits), NIF (9 digits + check digit), municipal domain for operators.
-- `UserAdminRepository`: pending citizens list, activation.
+- Shared `ImageCompressor` (downscale, JPEG, Base64 with `NO_WRAP`), used here for the profile photo and in B2 for tickets.
+- `UserAdminRepository`: pending citizens list, `observeUser`, activation.
 - `CategoryRepository` plus seed data: Public Roads, Water, Lighting, Sanitation.
+- Minimal Firestore rules: reads as in the schema where simple, every write requires sign-in; replaces test mode.
 
-**B2 · Tickets and photos (Tue 17 – Wed 18)**
+**B2 · Tickets and photos (Thu 19)**
 
-- `createTicket`: batch write of `tickets`, `publicTickets` and the first history entry; media items start as PENDING.
-- Image pipeline: downscale to max 1280 px, JPEG ~70%, ~200 px thumbnail, both Base64-encoded; check the full image stays under ~700 KB as Base64.
-- `PhotoUploadWorker` (WorkManager, `NetworkType.CONNECTED`, exponential backoff): compresses the picked photos, writes `tickets/{id}/media/{mediaId}`, sets the thumbnail and DONE/FAILED in the ticket, updates `publicTickets.thumbnailBase64`.
-- `observeMyTickets`, `observeAllTickets`, `observeTicket`, `retryUploads`, `MediaRepository.observeMedia`.
+- `createTicket`: copy the picked photos into `filesDir` right away (picker URIs lose permission later), then one batch write of `tickets`, `publicTickets` and the first history entry; photos start as PENDING.
+- Image pipeline via `ImageCompressor`: max 1280 px, JPEG ~70%, ~200 px thumbnail; keep the full image under ~700 KB as Base64 (1 MiB document limit).
+- `PhotoUploadWorker` (WorkManager, `NetworkType.CONNECTED`, exponential backoff): reads the copied files, writes `tickets/{id}/media/{mediaId}`, then updates the ticket's media list in a transaction (safe: the worker only runs online) and `publicTickets.thumbnailBase64`; deletes the local copies.
+- `observeMyTickets` (`whereArrayContains("authorIds")` + `orderBy("createdAt")`: create the composite index), `observeAllTickets`, `observeTicket`, `retryUploads`, `MediaRepository.observeMedia`.
 
-**B3 · Lifecycle, messages, public data (Thu 19)**
+**B3 · Lifecycle, messages, public data (Fri 20, morning)**
 
-- `changeState` with allowed transitions, history entry, `resolvedAt`, mirroring to `publicTickets`; `addResolutionMedia`.
+- `changeState` (operators only) with allowed transitions, history entry, `resolvedAt`, mirroring to `publicTickets`; `addResolutionPhotos`.
 - `MessageRepository` on `tickets/{id}/messages`.
-- `PublicRepository` with dashboard stats; `LocationProvider` with the 10 km check.
+- `PublicRepository` with dashboard stats; `FusedLocationProvider`-based `LocationProvider` with the 10 km check.
+- Switch `CityFixApp` to the Firebase container; integration with the frontend.
 
-**B4 · Security rules and offline (Fri 20)**
+**B4 · Security rules, offline test, demo data (Fri 20 – Sat 21)**
 
-- Firestore rules: role and status checks via `get(users/uid)`, owner-only fields, public read only for `categories` and `publicTickets`, no role escalation.
-- Rules for `tickets/{id}/media`: authors and operators write; read also allowed for public tickets.
-- Offline test: create a ticket in airplane mode, reconnect, confirm sync and upload.
-- Backend sections of the report: architecture, schema, rules, offline and upload strategy.
+- Full Firestore rules: role and status checks via `get(users/uid)`, owner-only fields, operators-only state changes, public read only for `categories`, `publicTickets` and media of public tickets, no role escalation.
+- Offline test: create a ticket in airplane mode, reconnect, confirm sync and photo processing.
+- Seed demo data: one Operator, one active Citizen, one pending Citizen, tickets in each state.
+- Backend sections of the report: architecture, schema, rules, offline strategy, Base64 photos, dashboard scope, missing MFA.
 
 ## 5. Frontend tasks (teammate)
 
 Build every screen against the fake repositories first; switching to real data is a one-line change in `AppContainer`.
 
-**F0 · Navigation shell and strings (Mon 16 – Tue 17)**
+**F0 · Navigation shell and strings (Wed 18, overdue)**
 
-- Navigation Compose graph with three entry points (Anonymous, Citizen, Operator), chosen from `currentUser`.
+- Navigation Compose graph with three entry points (Anonymous, Citizen, Operator), chosen from `AuthRepository.session` (`Loading` → splash, `Anonymous`, `SignedIn` by role; PENDING citizen → pending screen).
 - Shared `Scaffold` with a dynamic top bar (title and actions per screen) and a FAB where it fits.
 - All strings in `values/strings.xml` (English) and `values-pt/strings.xml` (Portuguese) from the first screen.
 - Screen pattern: a stateful `XRoute` that collects the ViewModel `StateFlow`, and a stateless `XScreen(state, onAction)` with a preview.
 
-**F1 · Auth and profile screens (Tue 17)**
+**F1 · Auth and profile screens (Thu 19, morning)**
 
 - Sign in, forgot password, register Citizen (location capture, optional photo), register Operator.
 - Inline validation errors; "account pending" screen for PENDING citizens.
 - Profile screen: phone and photo editable; name, NIF and location read-only.
 
-**F2 · Citizen ticket flow (Wed 18)**
+**F2 · Citizen ticket flow (Thu 19)**
 
 - Create ticket form: active category dropdown, incident type, description, public/private, current location, photo picker and camera, at least one photo required.
-- Runtime permissions: location, camera, notifications (Android 13+).
+- Runtime permissions: location and camera (notifications come with P1).
 - My tickets list with state chip and thumbnail; ticket details with media, history and upload status with retry.
 - Messages inside ticket details.
 
-**F3 · Operator and anonymous screens (Thu 19)**
+**F3 · Operator and anonymous screens (Fri 20)**
 
 - Operator panel: all tickets, filters by state and category, exact coordinates, author contact.
 - State change actions with a note dialog; resolution photo upload before RESOLVED.
 - Categories screen (create, edit, activate, deactivate) and pending citizens screen (name, NIF, location, activate).
-- Anonymous: location check screen (outside 10 km = blocked, with a sign-in option), dashboard, public list, public details with a zoomed-out map.
+- Anonymous: location check screen (outside 10 km = blocked, with a sign-in option), dashboard, public list, public details with a zoomed-out osmdroid map (no Google Maps: it needs billing).
 
-**F4 · Landscape, accessibility, report (Fri 20 – Sat 21)**
+**F4 · Landscape, accessibility, report (Sat 21)**
 
 - Landscape check on every screen: no lost input on rotation (state in ViewModels and `rememberSaveable`), scrollable forms.
 - Accessibility: `contentDescription` on images and icons, 48 dp touch targets, readable contrast.
@@ -218,7 +227,7 @@ Merge methods (they matter, the wrong one breaks the next sync):
 
 1. Branch from the latest `main`: `git switch main && git pull && git switch -c feature/B2-tickets-photos`.
 2. Open a PR into `main`. A review from the teammate is welcome but not required; Artem merges it himself with **Squash and merge** (admin bypass of the approval rule).
-3. Close the issue by hand (`gh issue close <n>`): closing keywords only work for PRs into the default branch (`develop`).
+3. Put `Closes #N` in the PR description: the issue closes when the squash commit reaches `develop` (the default branch) through the sync below.
 4. Tell the teammate, so the backend change reaches `develop` (next section).
 
 ### Keeping branches in sync
@@ -248,7 +257,7 @@ If there are conflicts, resolve them in Android Studio (Git → Resolve Conflict
 
 - Never push to `main`; never `git push --force` to `main` or `develop`.
 - `develop` must always build: run `./gradlew assembleDebug` before every merge into it.
-- Commit `google-services.json` (needed to build the submitted ZIP). Never commit `local.properties`, `.gradle/`, `build/` or keystores.
+- Commit `google-services.json` (needed to build the submitted ZIP). Never commit `local.properties`, `.gradle/`, `build/`, `.idea/` or keystores.
 - After the feature freeze (Sat 2026-11-21 evening) only `fix/` branches are merged, and the final `develop` → `main` PR is merged by Sat night.
 
 ### Repository settings (done)
@@ -260,25 +269,31 @@ If there are conflicts, resolve them in Android Studio (Git → Resolve Conflict
 
 ## 7. Schedule
 
-| Date | Milestone |
-| --- | --- |
-| Mon 2026-11-16 | Contract, fakes and build fix pushed (B0); frontend starts F0 |
-| Thu 2026-11-19 | First real integration: frontend switches from fakes to Firebase |
-| Sat 2026-11-21 (evening) | Feature freeze; bug fixes only afterwards |
-| Sun 2026-11-22, 18:00 | Testing, report and packaging done |
-| Sun 2026-11-22, 23:59 | Submission deadline |
+| Date | Backend (Artem) | Frontend (teammate) | Milestone |
+| --- | --- | --- | --- |
+| Mon 16 – Tue 17 | B0 done | — | Contract and fakes in `develop` |
+| Wed 18 | B1 | F0 | Fallback decision at 22:00 |
+| Thu 19 | B2 | F1, F2 | — |
+| Fri 20 | B3, then B4 | F3 | Switch to Firebase, first integration |
+| Sat 21 | B4, report | F4, report | Feature freeze in the evening |
+| Sun 22 | Test, package | Test, screenshots | Done by 18:00, deadline 23:59 |
 
 Each evening: open or update the `develop` → `main` PR, sync `main` into `develop`, run the app.
+
+**Fallback:** if no F0 work is pushed by Wed 18 at 22:00, Artem builds the F0 shell on Thu morning (navigation by role, Scaffold, strings) and the frontend scope is cut in this order: profile photo, operator filters, dashboard average, map (show rounded coordinates as text instead).
 
 ## 8. Risks
 
 | Risk | Fallback |
 | --- | --- |
-| Integration on 2026-11-19 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces; sync `main` into `develop` daily |
-| Security rules block legitimate flows late | Write rules on Fri 20 against finished flows; test with the emulator or the Rules Playground |
+| Frontend is 1.5 days behind and silent | Fallback above; screens are built on fakes, so backend work never waits for them |
+| Database open in test mode while the repo is public | Minimal rules in B1, full rules in B4 |
+| Integration on Fri 20 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces; sync `main` into `develop` daily |
+| Security rules block legitimate flows late | Write full rules against finished flows; test with the emulator or the Rules Playground |
+| Graders penalise missing MFA | Explain in the report; MFA is the first P1 item if time remains |
 | Graders penalise Base64 photos instead of Cloud Storage | Explain the free-plan constraint in the report; if time allows, enable Blaze and move photos/videos to Storage (P1) |
 | A photo exceeds the 1 MiB document limit | Compress harder (lower quality, then smaller size) until the Base64 string is under ~700 KB |
-| Upload worker or offline sync misbehaves in the demo | Airplane-mode test on Fri 20; seed demo data the night before |
+| Photo worker or offline sync misbehaves in the demo | Airplane-mode test in B4; seed demo data the night before |
 | P0 runs late | Cut order: landscape polish, then dashboard average, then profile photo; never cut the ticket flow |
 
 ## 9. Submission checklist

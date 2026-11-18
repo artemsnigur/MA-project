@@ -41,7 +41,7 @@ interface AppContainer {
     val categories: CategoryRepository
     val tickets: TicketRepository
     val media: MediaRepository
-    val public: PublicRepository
+    val publicData: PublicRepository
     val messages: MessageRepository
     val location: LocationProvider
 }
@@ -55,7 +55,7 @@ class FakeAppContainer : AppContainer {
     override val categories: CategoryRepository = FakeCategoryRepository(backend)
     override val tickets: TicketRepository = FakeTicketRepository(backend)
     override val media: MediaRepository = FakeMediaRepository(backend)
-    override val public: PublicRepository = FakePublicRepository(backend)
+    override val publicData: PublicRepository = FakePublicRepository(backend)
     override val messages: MessageRepository = FakeMessageRepository(backend)
     override val location: LocationProvider = FakeLocationProvider()
 }

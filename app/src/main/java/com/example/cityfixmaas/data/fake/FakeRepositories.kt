@@ -213,7 +213,8 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
     override suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit> {
         latency()
         return attempt {
-            val user = backend.requireUser()
+            // P0: only operators drive the lifecycle. Citizen reopening (RESOLVED -> OPEN) is P1.
+            val user = backend.requireOperator()
             val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
             require(to in ticket.lifecycleState.allowedNext()) {
                 "Cannot move from ${ticket.lifecycleState} to $to"

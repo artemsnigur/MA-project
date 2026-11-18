@@ -81,7 +81,10 @@ interface TicketRepository {
      */
     suspend fun createTicket(draft: TicketDraft): Result<String>
 
-    /** Fails if [to] is not in the current state's allowedNext(), or RESOLVED without RESOLUTION photos. */
+    /**
+     * Operator only. Fails if [to] is not in the current state's allowedNext(),
+     * or on RESOLVED without RESOLUTION photos.
+     */
     suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit>
 
     /** Operator evidence of completed work. Required before moving to RESOLVED. */

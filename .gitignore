@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# IDE settings differ per machine; Android Studio regenerates them
+.idea/
