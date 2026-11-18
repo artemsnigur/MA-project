@@ -23,6 +23,7 @@ We build P0 only. Everything else is stretch work and goes into the report as fu
 
 - Backend is Firebase only, on the free Spark plan: Auth and Firestore, plus WorkManager on the device. No custom server.
 - **Photos are stored in Firestore as Base64 JPEG, not in Cloud Storage.** Cloud Storage requires the paid Blaze plan on new projects. Each full photo is its own document (Firestore limit: 1 MiB per document); small thumbnails sit inside the ticket document so lists stay fast. This deviates from the assignment ("upload to Firebase Storage") and must be explained in the report.
+- **Keep the code simple and explainable.** Write the simplest code that meets `PROJECT_REQUIREMENTS.md`: few files, plain structure, library helpers instead of own wrappers, no extra hardening or features the assignment does not ask for. Every line must be easy to explain at the defense.
 - UI never calls Firebase directly: Compose screens → ViewModels → repository interfaces.
 - Dependency wiring through a manual `AppContainer` (no Hilt). Fakes and Firebase implementations share the same interfaces; switching is one line.
 - Maps use **osmdroid** (OpenStreetMap tiles, no API key) inside `AndroidView`. Google Maps SDK needs a billing account, like Cloud Storage. osmdroid is archived since 2024 but 6.1.20 works; fallback: MapLibre with OSM tiles.
@@ -42,9 +43,8 @@ UI package layout: one package per feature under `ui/`, e.g. `ui/auth/`, `ui/tic
 | Path | Holds | Readable by |
 | --- | --- | --- |
 | `users/{uid}` | role, status (PENDING / ACTIVE), name, email, phone, nif, location, photoBase64, impactDetectionEnabled | owner, operators |
-| `nifs/{ROLE_nif}` | uid; makes NIF unique per role | single-document `get` by anyone (pre-check before sign-up), no listing; create only if absent |
 | `categories/{id}` | name, active | everyone |
-| `tickets/{id}` | authorIds, categoryId, incidentType, lifecycleState, publicScope, location, description, media (refs with ~200 px Base64 thumbnails and upload state), timestamps | authors, operators |
+| `tickets/{id}` | authorId, categoryId, incidentType, lifecycleState, publicScope, location, description, media (refs with ~200 px Base64 thumbnails and upload state), timestamps | authors, operators |
 | `tickets/{id}/media/{id}` | imageBase64 (JPEG, max 1280 px, ~400 KB as Base64), phase (REPORT / RESOLUTION), createdAt | authors, operators; everyone if the ticket is public |
 | `tickets/{id}/history/{id}` | from, to, byUid, at, note | authors, operators |
 | `tickets/{id}/messages/{id}` | senderUid, senderRole, text, sentAt | authors, operators |
@@ -55,12 +55,13 @@ UI package layout: one package per feature under `ui/`, e.g. `ui/auth/`, `ui/tic
 - A ticket counts as submitted once its Firestore document is written. Photo processing (compress, encode, write to `media`) runs afterwards in WorkManager with `uploadState` PENDING / DONE / FAILED; the UI shows that state with a retry action.
 - Ticket creation is a batch write (ticket + `publicTickets` + first history entry), never a transaction, because transactions fail offline.
 - `publicTickets` is the only ticket data anonymous users read. It has no author data and coordinates rounded to about 1 km.
-- Operator registration is allowed only for emails in the municipal domain, checked in the app and in security rules. The domain is a constant.
+- Operator registration is allowed only for emails in the municipal domain, checked in the app. The domain is a constant.
+- NIF uniqueness per role: after the Auth account is created, query `users` for the same role and NIF; if one exists, delete the new account and show an error.
 - The 10 km center is a constant: Praça da República, Coimbra.
 - Dashboard numbers come from `publicTickets`: total count, share of active tickets, average `resolvedAt - createdAt`. Anonymous users cannot read private tickets, so the dashboard counts public tickets only; state this in the report.
 - In P0 only operators change the lifecycle state. Citizens talk through messages; citizen reopening is P1.
 - State changes and other ticket edits use field updates (`update("lifecycleState", ...)`), never a full-document overwrite, so concurrent writers do not erase each other.
-- Until the full rules of B4, the database runs with minimal rules from B1 (sign-in required for any write). The repository is public and `google-services.json` names the project, so test mode must not stay on.
+- Security rules stay simple (`firestore.rules`): anyone reads `categories`, `publicTickets` and the media of public tickets; everything else needs a signed-in user. Role checks live in the app.
 
 ## 3. Shared contract
 
@@ -100,19 +101,19 @@ The repository enforces these; the UI only offers the valid ones.
 **B1 · Auth, users, categories (Wed 18)**
 
 - `FirebaseAuthRepository`: sign in, register Citizen (PENDING) and Operator (ACTIVE), password reset, profile update, sign out; `session` emits Loading until Firebase restores the cached user.
-- Registration order: validate the form → `get` `nifs/{ROLE_nif}` (fail early if taken) → create the Auth account → one batch with `users/{uid}` and `nifs/{ROLE_nif}`. If the batch fails, delete the new Auth user so the email is not left blocked.
-- Validation helpers: email, Portuguese phone (9 digits), NIF (9 digits + check digit), municipal domain for operators.
-- Shared `ImageCompressor` (downscale, JPEG, Base64 with `NO_WRAP`), used here for the profile photo and in B2 for tickets.
+- Registration: validate the form → create the Auth account → check that no user of the same role has this NIF (otherwise delete the account) → save `users/{uid}`.
+- `Validation`: email, phone (9 digits), NIF (9 digits), municipal domain for operators.
+- `data/media/Images.kt`: `uriToBase64Jpeg` (downscale, JPEG, Base64) for the profile photo, reused in B2.
 - `UserAdminRepository`: pending citizens list, `observeUser`, activation.
-- `CategoryRepository` plus seed data: Public Roads, Water, Lighting, Sanitation.
-- Minimal Firestore rules: reads as in the schema where simple, every write requires sign-in; replaces test mode.
+- `CategoryRepository` (operators create the categories through the app).
+- Simple `firestore.rules`, pasted into the console.
 
 **B2 · Tickets and photos (Thu 19)**
 
 - `createTicket`: copy the picked photos into `filesDir` right away (picker URIs lose permission later), then one batch write of `tickets`, `publicTickets` and the first history entry; photos start as PENDING.
-- Image pipeline via `ImageCompressor`: max 1280 px, JPEG ~70%, ~200 px thumbnail; keep the full image under ~700 KB as Base64 (1 MiB document limit).
+- Image pipeline via `uriToBase64Jpeg`: max 1280 px, JPEG ~70%, ~200 px thumbnail; keep the full image under ~700 KB as Base64 (1 MiB document limit).
 - `PhotoUploadWorker` (WorkManager, `NetworkType.CONNECTED`, exponential backoff): reads the copied files, writes `tickets/{id}/media/{mediaId}`, then updates the ticket's media list in a transaction (safe: the worker only runs online) and `publicTickets.thumbnailBase64`; deletes the local copies.
-- `observeMyTickets` (`whereArrayContains("authorIds")` + `orderBy("createdAt")`: create the composite index), `observeAllTickets`, `observeTicket`, `retryUploads`, `MediaRepository.observeMedia`.
+- `observeMyTickets` (`whereEqualTo("authorId")`, sorted on the device, so no index is needed), `observeAllTickets`, `observeTicket`, `retryUploads`, `MediaRepository.observeMedia`.
 
 **B3 · Lifecycle, messages, public data (Fri 20, morning)**
 
@@ -121,9 +122,9 @@ The repository enforces these; the UI only offers the valid ones.
 - `PublicRepository` with dashboard stats; `FusedLocationProvider`-based `LocationProvider` with the 10 km check.
 - Switch `CityFixApp` to the Firebase container; integration with the frontend.
 
-**B4 · Security rules, offline test, demo data (Fri 20 – Sat 21)**
+**B4 · Offline test, demo data, report (Fri 20 – Sat 21)**
 
-- Full Firestore rules: role and status checks via `get(users/uid)`, owner-only fields, operators-only state changes, public read only for `categories`, `publicTickets` and media of public tickets, no role escalation.
+- Publish `firestore.rules` and check every flow with them.
 - Offline test: create a ticket in airplane mode, reconnect, confirm sync and photo processing.
 - Seed demo data: one Operator, one active Citizen, one pending Citizen, tickets in each state.
 - Backend sections of the report: architecture, schema, rules, offline strategy, Base64 photos, dashboard scope, missing MFA.
@@ -287,9 +288,8 @@ Each evening: open or update the `develop` → `main` PR, sync `main` into `deve
 | Risk | Fallback |
 | --- | --- |
 | Frontend is 1.5 days behind and silent | Fallback above; screens are built on fakes, so backend work never waits for them |
-| Database open in test mode while the repo is public | Minimal rules in B1, full rules in B4 |
+| Database open in test mode while the repo is public | Publish the simple `firestore.rules` |
 | Integration on Fri 20 reveals contract mismatches | Contract changes only by agreement; fakes and Firebase implement the same interfaces; sync `main` into `develop` daily |
-| Security rules block legitimate flows late | Write full rules against finished flows; test with the emulator or the Rules Playground |
 | Graders penalise missing MFA | Explain in the report; MFA is the first P1 item if time remains |
 | Graders penalise Base64 photos instead of Cloud Storage | Explain the free-plan constraint in the report; if time allows, enable Blaze and move photos/videos to Storage (P1) |
 | A photo exceeds the 1 MiB document limit | Compress harder (lower quality, then smaller size) until the Base64 string is under ~700 KB |

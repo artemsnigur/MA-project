@@ -2,7 +2,7 @@ package com.example.cityfixmaas.ui.navigation
 
 import kotlinx.serialization.Serializable
 
-// Type-safe Navigation Compose destinations. Arguments are ids only; screens load data by id.
+// Screens of the app. Arguments are ids only; each screen loads its data by id.
 
 // Public / shared
 @Serializable data object DashboardRoute
@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object PendingCitizensRoute
 @Serializable data object CategoriesRoute
 
-/** First screen of each app mode. */
+/** First screen for each [AppMode]. */
 fun startRouteFor(mode: AppMode): Any = when (mode) {
     AppMode.ANONYMOUS -> DashboardRoute
     AppMode.PENDING_CITIZEN -> AccountPendingRoute

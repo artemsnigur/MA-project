@@ -109,28 +109,28 @@ class FakeBackend {
             val t = now()
             return listOf(
                 Ticket(
-                    id = "t-pothole", authorIds = listOf("cit-rui"), categoryId = "cat-roads",
+                    id = "t-pothole", authorId = "cit-rui", categoryId = "cat-roads",
                     incidentType = IncidentType.DAMAGE, lifecycleState = LifecycleState.OPEN,
                     publicScope = true, description = "Deep pothole in the right lane near the bus stop.",
                     location = near(0.002, -0.001), media = listOf(ref("m-pothole", at = t - 2 * HOUR)),
                     createdAt = t - 2 * HOUR, updatedAt = t - 2 * HOUR,
                 ),
                 Ticket(
-                    id = "t-lamp", authorIds = listOf("cit-rui"), categoryId = "cat-lighting",
+                    id = "t-lamp", authorId = "cit-rui", categoryId = "cat-lighting",
                     incidentType = IncidentType.BREAKDOWN, lifecycleState = LifecycleState.IN_RESOLUTION,
                     publicScope = true, description = "Street lamp has been off for a week.",
                     location = near(-0.003, 0.004), media = listOf(ref("m-lamp", at = t - 3 * DAY)),
                     createdAt = t - 3 * DAY, updatedAt = t - 1 * DAY,
                 ),
                 Ticket(
-                    id = "t-bins", authorIds = listOf("cit-rui"), categoryId = "cat-sanitation",
+                    id = "t-bins", authorId = "cit-rui", categoryId = "cat-sanitation",
                     incidentType = IncidentType.THEFT, lifecycleState = LifecycleState.INFORMATION_REQUEST,
                     publicScope = true, description = "Two recycling bins were taken from the corner.",
                     location = near(0.006, 0.005), media = listOf(ref("m-bins", at = t - 2 * DAY)),
                     createdAt = t - 2 * DAY, updatedAt = t - 20 * HOUR,
                 ),
                 Ticket(
-                    id = "t-leak", authorIds = listOf("cit-rui"), categoryId = "cat-water",
+                    id = "t-leak", authorId = "cit-rui", categoryId = "cat-water",
                     incidentType = IncidentType.DESTRUCTION, lifecycleState = LifecycleState.RESOLVED,
                     publicScope = false, description = "Broken water pipe flooding the pavement.",
                     location = near(-0.001, -0.005),

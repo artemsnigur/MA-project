@@ -1,15 +1,20 @@
 package com.example.cityfixmaas.ui.navigation
 
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,9 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.cityfixmaas.R
-import com.example.cityfixmaas.ui.components.LoadingScreen
 import com.example.cityfixmaas.ui.components.MainTopAppBar
-import com.example.cityfixmaas.ui.components.PlaceholderScreen
 
 /**
  * Root of the UI: picks the graph from the session and hosts the shared Scaffold.
@@ -33,7 +36,11 @@ import com.example.cityfixmaas.ui.components.PlaceholderScreen
 @Composable
 fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory)) {
     val mode by sessionViewModel.mode.collectAsStateWithLifecycle()
-    val currentMode = mode ?: return LoadingScreen()
+    val currentMode = mode
+    if (currentMode == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
 
     key(currentMode) {
         val navController = rememberNavController()
@@ -81,5 +88,13 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 composable<CategoriesRoute> { PlaceholderScreen(R.string.title_categories) }
             }
         }
+    }
+}
+
+/** TEMP: stands in for a screen until F1–F3 replace it. */
+@Composable
+private fun PlaceholderScreen(@StringRes titleRes: Int, detail: String? = null) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(stringResource(titleRes) + (detail?.let { " $it" } ?: ""))
     }
 }
