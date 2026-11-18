@@ -1,0 +1,25 @@
+<resources>
+    <string name="title_dashboard">Painel</string>
+    <string name="title_incidents">Ocorrências</string>
+    <string name="title_incident_detail">Detalhes da ocorrência</string>
+    <string name="title_login">Iniciar sessão</string>
+    <string name="title_register">Registar</string>
+    <string name="title_my_incidents">As minhas ocorrências</string>
+    <string name="title_report_incident">Nova ocorrência</string>
+    <string name="title_profile">Perfil</string>
+    <string name="title_account_pending">Conta pendente</string>
+    <string name="title_panel">Painel de operações</string>
+    <string name="title_pending">Cidadãos pendentes</string>
+    <string name="title_categories">Categorias</string>
+
+    <string name="cd_back">Voltar</string>
+    <string name="cd_dashboard">Painel</string>
+    <string name="cd_incident_list">Ocorrências públicas</string>
+    <string name="cd_login">Iniciar sessão</string>
+    <string name="cd_sign_out">Terminar sessão</string>
+    <string name="cd_profile">Perfil</string>
+    <string name="cd_pending">Registos pendentes</string>
+    <string name="cd_categories">Categorias</string>
+    <string name="cd_switch_role">Mudar conta de demonstração (debug)</string>
+    <string name="fab_new_incident">Nova ocorrência</string>
+</resources>
