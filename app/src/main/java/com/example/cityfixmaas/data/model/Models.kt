@@ -61,8 +61,8 @@ data class MediaContent(
 /** Stored in `tickets/{id}`. Readable by its authors and operators only. */
 data class Ticket(
     val id: String = "",
-    /** Several authors when duplicate reports are aggregated into a group ticket (P1). */
-    val authorIds: List<String> = emptyList(),
+    /** uid of the citizen who reported it. */
+    val authorId: String = "",
     val categoryId: String = "",
     val incidentType: IncidentType = IncidentType.DAMAGE,
     val lifecycleState: LifecycleState = LifecycleState.OPEN,

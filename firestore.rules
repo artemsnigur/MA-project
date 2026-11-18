@@ -1,70 +1,22 @@
 rules_version = '2';
 
-// B1 rules: users, NIFs and categories are final; tickets are only "signed-in" until B4.
-// Deploy: Firebase console → Firestore → Rules → paste this file → Publish
-// (or `npx firebase-tools deploy --only firestore:rules`).
+// Simple rules: anyone may read categories and public tickets (anonymous mode);
+// everything else needs a signed-in user. Paste into Firebase console → Firestore → Rules.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isOperator() {
-      return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OPERATOR';
-    }
-
-    function changesOnly(keys) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
-    }
-
-    match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isOperator());
-
-      // Citizens register as PENDING; operators as ACTIVE, only with a municipal email.
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.id == uid
-        && (
-          (request.resource.data.role == 'CITIZEN' && request.resource.data.status == 'PENDING')
-          || (request.resource.data.role == 'OPERATOR' && request.resource.data.status == 'ACTIVE'
-              && request.auth.token.email.lower().matches('.*@cm-coimbra[.]pt$'))
-        );
-
-      // Owners edit phone and photo; operators only activate accounts.
-      allow update: if signedIn() && (
-        (request.auth.uid == uid && changesOnly(['phone', 'photoBase64']))
-        || (isOperator() && changesOnly(['status']) && request.resource.data.status == 'ACTIVE')
-      );
-
-      allow delete: if false;
-    }
-
-    // One document per (role, NIF): the registration batch fails if the NIF is taken,
-    // because writing an existing document is an update, and updates are denied.
-    match /nifs/{key} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if false;
-    }
-
     match /categories/{id} {
       allow read: if true;
-      allow write: if isOperator();
-    }
-
-    // Tightened in B4.
-    match /tickets/{ticketId} {
-      allow read, write: if signedIn();
-      match /{sub=**} {
-        allow read, write: if signedIn();
-      }
+      allow write: if request.auth != null;
     }
 
     match /publicTickets/{id} {
       allow read: if true;
-      allow write: if signedIn();
+      allow write: if request.auth != null;
+    }
+
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

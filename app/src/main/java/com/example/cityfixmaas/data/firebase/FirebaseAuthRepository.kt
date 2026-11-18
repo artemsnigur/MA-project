@@ -1,7 +1,9 @@
 package com.example.cityfixmaas.data.firebase
 
+import android.content.Context
 import android.net.Uri
-import com.example.cityfixmaas.data.media.ImageCompressor
+import com.example.cityfixmaas.data.media.ImageSize
+import com.example.cityfixmaas.data.media.uriToBase64Jpeg
 import com.example.cityfixmaas.data.model.AccountStatus
 import com.example.cityfixmaas.data.model.RegistrationForm
 import com.example.cityfixmaas.data.model.SessionState
@@ -11,148 +13,122 @@ import com.example.cityfixmaas.data.repository.AuthRepository
 import com.example.cityfixmaas.data.validation.Validation
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Source
+import com.google.firebase.firestore.snapshots
+import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class FirebaseAuthRepository(
+    private val context: Context,
     private val auth: FirebaseAuth,
-    private val db: FirebaseFirestore,
-    private val images: ImageCompressor,
+    db: FirebaseFirestore,
     scope: CoroutineScope,
 ) : AuthRepository {
 
-    private val users = db.collection(Paths.USERS)
+    private val users = db.collection("users")
 
-    /**
-     * True between creating the Auth account and writing users/{uid}. During that window the
-     * session stays Loading instead of flashing Anonymous (the profile does not exist yet).
-     */
-    private val registering = MutableStateFlow(false)
-
+    /** Firebase Auth tells who is signed in; their profile comes from users/{uid}. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    override val session: StateFlow<SessionState> = authUid()
+    override val session: StateFlow<SessionState> = signedInUid()
         .flatMapLatest { uid ->
             if (uid == null) {
                 flowOf(SessionState.Anonymous)
             } else {
-                val profile = users.document(uid).observe { it.toObject(User::class.java) }
-                combine(profile, registering) { user, isRegistering ->
-                    when {
-                        user != null -> SessionState.SignedIn(user)
-                        isRegistering -> SessionState.Loading
-                        // Auth account without a profile (should not happen): treat as signed out.
-                        else -> SessionState.Anonymous
+                users.document(uid).snapshots()
+                    .map { doc ->
+                        val user = doc.toObject<User>()
+                        if (user == null) SessionState.Anonymous else SessionState.SignedIn(user)
                     }
-                }
+                    .catch { emit(SessionState.Anonymous) }
             }
         }
         .stateIn(scope, SharingStarted.Eagerly, SessionState.Loading)
 
-    /** Current Firebase uid; the listener fires once Firebase has restored the cached user. */
-    private fun authUid(): Flow<String?> = callbackFlow {
+    /** Emits the uid of the signed-in user (or null) every time it changes. */
+    private fun signedInUid() = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.uid) }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
-    }.distinctUntilChanged()
-
-    override suspend fun signIn(email: String, password: String): Result<Unit> = firebaseResult {
-        Validation.email(email)?.let { throw IllegalArgumentException(it) }
-        require(password.isNotEmpty()) { "Password is required" }
-        auth.signInWithEmailAndPassword(email.trim(), password).await()
-        Unit
     }
 
-    override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> =
-        firebaseResult { register(form, UserRole.CITIZEN, AccountStatus.PENDING) }
+    override suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+        auth.signInWithEmailAndPassword(email.trim(), password).await()
+    }
 
-    override suspend fun registerOperator(form: RegistrationForm): Result<Unit> =
-        firebaseResult { register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE) }
+    override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> = runCatching {
+        register(form, UserRole.CITIZEN, AccountStatus.PENDING)
+    }
+
+    override suspend fun registerOperator(form: RegistrationForm): Result<Unit> = runCatching {
+        register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE)
+    }
 
     /**
-     * Order matters, so a failure never leaves a half-registered account behind:
-     * validate → NIF pre-check → photo → Auth account → one batch (profile + NIF claim).
-     * If the batch fails, the new Auth account is deleted so the email can be used again.
+     * 1. Check the form. 2. Create the Firebase Auth account (this also signs in).
+     * 3. Make sure no other user with this role has the same NIF; if one does, delete the new
+     *    account again. 4. Save the profile in users/{uid}.
      */
     private suspend fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
-        Validation.registration(form, role)?.let { throw IllegalArgumentException(it) }
+        Validation.registration(form, role)?.let { error -> throw IllegalArgumentException(error) }
+
         val email = form.email.trim().lowercase()
-        val nif = form.nif.trim()
-        val nifRef = db.collection(Paths.NIFS).document(Paths.nifKey(role.name, nif))
+        val account = auth.createUserWithEmailAndPassword(email, form.password).await().user!!
 
-        // Server read: a cached "missing" answer would let a duplicate NIF through.
-        check(!nifRef.get(Source.SERVER).await().exists()) { "This NIF is already registered" }
-
-        val photo = form.photoUri?.let {
-            images.toBase64Jpeg(it, ImageCompressor.PROFILE_MAX_DIMENSION, ImageCompressor.PROFILE_MAX_BASE64)
+        val sameNif = users
+            .whereEqualTo("role", role.name)
+            .whereEqualTo("nif", form.nif.trim())
+            .get().await()
+        if (!sameNif.isEmpty) {
+            account.delete().await()
+            throw IllegalArgumentException("This NIF is already registered")
         }
 
-        registering.value = true
-        try {
-            val firebaseUser = auth.createUserWithEmailAndPassword(email, form.password).await().user
-                ?: error("Registration failed, please try again")
-            val user = User(
-                id = firebaseUser.uid,
-                role = role,
-                status = status,
-                name = form.name.trim(),
-                email = email,
-                phone = Validation.normalizePhone(form.phone),
-                nif = nif,
-                location = form.location,
-                photoBase64 = photo,
-                impactDetectionEnabled = form.impactDetectionEnabled,
-                createdAt = System.currentTimeMillis(),
-            )
-            try {
-                db.batch()
-                    .set(users.document(user.id), user)
-                    .set(nifRef, mapOf("uid" to user.id))
-                    .commit()
-                    .await()
-            } catch (e: Exception) {
-                // Most likely another account claimed the NIF in the meantime (rules deny the write).
-                runCatching { firebaseUser.delete().await() }
-                throw IllegalStateException("Registration failed: this NIF may already be registered", e)
-            }
-        } finally {
-            registering.value = false
-        }
+        val photo = form.photoUri?.let { toBase64(it) }
+        val user = User(
+            id = account.uid,
+            role = role,
+            status = status,
+            name = form.name.trim(),
+            email = email,
+            phone = form.phone.trim(),
+            nif = form.nif.trim(),
+            location = form.location,
+            photoBase64 = photo,
+            impactDetectionEnabled = form.impactDetectionEnabled,
+            createdAt = System.currentTimeMillis(),
+        )
+        users.document(user.id).set(user).await()
     }
 
-    override suspend fun sendPasswordReset(email: String): Result<Unit> = firebaseResult {
-        Validation.email(email)?.let { throw IllegalArgumentException(it) }
+    override suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
         auth.sendPasswordResetEmail(email.trim()).await()
-        Unit
     }
 
-    override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> = firebaseResult {
-        val uid = auth.currentUser?.uid ?: error("Not signed in")
-        Validation.phone(phone)?.let { throw IllegalArgumentException(it) }
-        val changes = mutableMapOf<String, Any>("phone" to Validation.normalizePhone(phone))
-        if (photoUri != null) {
-            changes["photoBase64"] = images.toBase64Jpeg(
-                photoUri, ImageCompressor.PROFILE_MAX_DIMENSION, ImageCompressor.PROFILE_MAX_BASE64,
-            )
-        }
-        // Not awaited on purpose: Firestore applies it locally at once and syncs when online.
-        users.document(uid).update(changes)
-        Unit
+    override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> = runCatching {
+        Validation.phone(phone)?.let { error -> throw IllegalArgumentException(error) }
+        val uid = auth.currentUser!!.uid
+        val changes = mutableMapOf<String, Any>("phone" to phone.trim())
+        if (photoUri != null) changes["photoBase64"] = toBase64(photoUri)
+        users.document(uid).update(changes).await()
     }
 
     override suspend fun signOut() {
         auth.signOut()
+    }
+
+    private suspend fun toBase64(uri: Uri) = withContext(Dispatchers.IO) {
+        uriToBase64Jpeg(context, uri, ImageSize.PROFILE)
     }
 }

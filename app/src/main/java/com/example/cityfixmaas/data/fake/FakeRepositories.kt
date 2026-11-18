@@ -75,7 +75,6 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         return attempt { register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE) }
     }
 
-    /** Same validation and error messages as the Firebase implementation. */
     private fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
         Validation.registration(form, role)?.let { throw IllegalArgumentException(it) }
         val email = form.email.trim().lowercase()
@@ -84,7 +83,7 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         require(users.none { it.role == role && it.nif == form.nif }) { "This NIF is already registered" }
         val user = User(
             id = newId(), role = role, status = status, name = form.name.trim(), email = email,
-            phone = Validation.normalizePhone(form.phone), nif = form.nif.trim(), location = form.location,
+            phone = form.phone.trim(), nif = form.nif.trim(), location = form.location,
             photoBase64 = form.photoUri?.let { SAMPLE_IMAGE_BASE64 },
             impactDetectionEnabled = form.impactDetectionEnabled, createdAt = now(),
         )
@@ -104,7 +103,7 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
             val user = backend.requireUser()
             Validation.phone(phone)?.let { throw IllegalArgumentException(it) }
             val updated = user.copy(
-                phone = Validation.normalizePhone(phone),
+                phone = phone.trim(),
                 photoBase64 = if (photoUri != null) SAMPLE_IMAGE_BASE64 else user.photoBase64,
             )
             backend.users.update { it + (user.id to updated) }
@@ -167,7 +166,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
 
     override fun observeMyTickets(): Flow<List<Ticket>> =
         combine(backend.tickets, backend.currentUid) { tickets, uid ->
-            tickets.values.filter { uid != null && uid in it.authorIds }.sortedByDescending { it.createdAt }
+            tickets.values.filter { it.authorId == uid }.sortedByDescending { it.createdAt }
         }
 
     override fun observeAllTickets(): Flow<List<Ticket>> =
@@ -193,7 +192,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             val at = now()
             val photos = draft.photoUris.map { newMedia(id, MediaPhase.REPORT, at) }
             val ticket = Ticket(
-                id = id, authorIds = listOf(user.id), categoryId = draft.categoryId,
+                id = id, authorId = user.id, categoryId = draft.categoryId,
                 incidentType = draft.incidentType, lifecycleState = LifecycleState.OPEN,
                 publicScope = draft.publicScope, description = draft.description.trim(),
                 location = draft.location, media = photos.map { it.first },

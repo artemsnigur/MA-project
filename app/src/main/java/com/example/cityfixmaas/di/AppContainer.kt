@@ -16,9 +16,6 @@ import com.example.cityfixmaas.data.fake.FakeUserAdminRepository
 import com.example.cityfixmaas.data.firebase.FirebaseAuthRepository
 import com.example.cityfixmaas.data.firebase.FirebaseCategoryRepository
 import com.example.cityfixmaas.data.firebase.FirebaseUserAdminRepository
-import com.example.cityfixmaas.data.media.ImageCompressor
-import com.example.cityfixmaas.data.model.SessionState
-import com.example.cityfixmaas.data.model.UserRole
 import com.example.cityfixmaas.data.repository.AuthRepository
 import com.example.cityfixmaas.data.repository.CategoryRepository
 import com.example.cityfixmaas.data.repository.LocationProvider
@@ -32,10 +29,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 /**
  * Manual dependency injection: one place that decides which implementation each repository uses.
@@ -77,38 +70,23 @@ class FakeAppContainer : AppContainer {
 }
 
 /**
- * Firebase-backed data. B1 covers auth, users and categories; tickets, media, public data,
- * messages and location are still fakes until B2–B3, so do not switch [CityFixApp] to this
- * container for normal UI work yet (signed-in Firebase users are unknown to the fake tickets).
+ * Real data from Firebase. Auth, users and categories are done (B1); the rest is still fake
+ * until B2–B3. CityFixApp keeps using the fake container until then.
  */
 class FirebaseAppContainer(context: Context) : AppContainer {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val firebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val images = ImageCompressor(context.applicationContext)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val fakes = FakeBackend()
 
-    private val firebaseCategories = FirebaseCategoryRepository(db)
-
-    override val auth: AuthRepository = FirebaseAuthRepository(firebaseAuth, db, images, scope)
+    override val auth: AuthRepository = FirebaseAuthRepository(context, firebaseAuth, db, scope)
     override val userAdmin: UserAdminRepository = FirebaseUserAdminRepository(db)
-    override val categories: CategoryRepository = firebaseCategories
+    override val categories: CategoryRepository = FirebaseCategoryRepository(db)
     override val tickets: TicketRepository = FakeTicketRepository(fakes) // B2
     override val media: MediaRepository = FakeMediaRepository(fakes) // B2
     override val publicData: PublicRepository = FakePublicRepository(fakes) // B3
     override val messages: MessageRepository = FakeMessageRepository(fakes) // B3
     override val location: LocationProvider = FakeLocationProvider() // B3
-
-    init {
-        // Default categories are created by the first operator who signs in.
-        scope.launch {
-            auth.session
-                .map { (it as? SessionState.SignedIn)?.user?.role == UserRole.OPERATOR }
-                .distinctUntilChanged()
-                .filter { it }
-                .collect { firebaseCategories.seedDefaultsIfEmpty() }
-        }
-    }
 }
 
 /** Access the container inside `viewModelFactory { initializer { ... } }`. */

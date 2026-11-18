@@ -14,9 +14,6 @@ object AppConfig {
 
     /** Operators must register with an email in this domain. TODO: confirm the domain. */
     const val MUNICIPAL_EMAIL_DOMAIN = "cm-coimbra.pt"
-
-    /** Days a citizen may reopen a resolved ticket (P1). */
-    const val REOPEN_WINDOW_DAYS = 5
 }
 
 /** Great-circle distance in metres (haversine). */
