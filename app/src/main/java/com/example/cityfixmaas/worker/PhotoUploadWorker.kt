@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -18,7 +17,6 @@ import com.example.cityfixmaas.data.model.MediaRef
 import com.example.cityfixmaas.data.model.Ticket
 import com.example.cityfixmaas.data.model.UploadState
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.tasks.await
 import java.io.File
@@ -41,9 +39,8 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val ticketId = inputData.getString(KEY_TICKET_ID) ?: return Result.failure()
         return try {
-            // Read from the server: a ticket created offline may not be synced yet, then try later.
-            val ticket = db.collection("tickets").document(ticketId).get(Source.SERVER).await()
-                .toObject<Ticket>() ?: return Result.retry()
+            val ticket = db.collection("tickets").document(ticketId).get().await()
+                .toObject<Ticket>() ?: return Result.failure()
             for (ref in ticket.media.filter { it.uploadState != UploadState.DONE }) {
                 val file = localFile(applicationContext, ref.id)
                 if (file.exists()) upload(ticket, ref, file) else markState(ticketId, ref.id, UploadState.FAILED, null)
@@ -72,22 +69,14 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
         file.delete()
     }
 
-    /**
-     * Changes one photo inside the ticket's media list. A transaction reads the latest list first,
-     * so photos added meanwhile (e.g. by an operator) are not lost.
-     */
+    /** Changes the state (and thumbnail) of one photo in the ticket's media list. */
     private suspend fun markState(ticketId: String, mediaId: String, state: UploadState, thumbnail: String?) {
         val ticketRef = db.collection("tickets").document(ticketId)
-        db.runTransaction { transaction ->
-            val ticket = transaction.get(ticketRef).toObject<Ticket>()
-            if (ticket != null) {
-                val media = ticket.media.map {
-                    if (it.id == mediaId) it.copy(uploadState = state, thumbnailBase64 = thumbnail ?: it.thumbnailBase64) else it
-                }
-                transaction.update(ticketRef, "media", media)
-            }
-            null
-        }.await()
+        val ticket = ticketRef.get().await().toObject<Ticket>() ?: return
+        val media = ticket.media.map {
+            if (it.id == mediaId) it.copy(uploadState = state, thumbnailBase64 = thumbnail ?: it.thumbnailBase64) else it
+        }
+        ticketRef.update("media", media).await()
     }
 
     companion object {
@@ -115,9 +104,7 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
                 .setConstraints(Constraints(requiredNetworkType = NetworkType.CONNECTED))
                 .setInputData(workDataOf(KEY_TICKET_ID to ticketId))
                 .build()
-            // One queue per ticket: new photos wait for the running upload instead of cancelling it.
-            WorkManager.getInstance(context)
-                .enqueueUniqueWork("photos-$ticketId", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+            WorkManager.getInstance(context).enqueue(request)
         }
     }
 }
