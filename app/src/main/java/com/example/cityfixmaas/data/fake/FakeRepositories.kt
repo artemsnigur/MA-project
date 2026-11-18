@@ -33,6 +33,7 @@ import com.example.cityfixmaas.data.repository.PublicRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.data.repository.UserAdminRepository
 import com.example.cityfixmaas.data.roundedForPublic
+import com.example.cityfixmaas.data.validation.Validation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,30 +67,24 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
 
     override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> {
         latency()
-        return attempt {
-            requireNotNull(form.location) { "Location is required" }
-            register(form, UserRole.CITIZEN, AccountStatus.PENDING)
-        }
+        return attempt { register(form, UserRole.CITIZEN, AccountStatus.PENDING) }
     }
 
     override suspend fun registerOperator(form: RegistrationForm): Result<Unit> {
         latency()
-        return attempt {
-            require(form.email.trim().lowercase().endsWith("@" + AppConfig.MUNICIPAL_EMAIL_DOMAIN)) {
-                "Operators must use a @${AppConfig.MUNICIPAL_EMAIL_DOMAIN} email"
-            }
-            register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE)
-        }
+        return attempt { register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE) }
     }
 
+    /** Same validation and error messages as the Firebase implementation. */
     private fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
+        Validation.registration(form, role)?.let { throw IllegalArgumentException(it) }
         val email = form.email.trim().lowercase()
         val users = backend.users.value.values
         require(users.none { it.email == email }) { "This email is already registered" }
         require(users.none { it.role == role && it.nif == form.nif }) { "This NIF is already registered" }
         val user = User(
             id = newId(), role = role, status = status, name = form.name.trim(), email = email,
-            phone = form.phone, nif = form.nif, location = form.location,
+            phone = Validation.normalizePhone(form.phone), nif = form.nif.trim(), location = form.location,
             photoBase64 = form.photoUri?.let { SAMPLE_IMAGE_BASE64 },
             impactDetectionEnabled = form.impactDetectionEnabled, createdAt = now(),
         )
@@ -107,8 +102,9 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         latency()
         return attempt {
             val user = backend.requireUser()
+            Validation.phone(phone)?.let { throw IllegalArgumentException(it) }
             val updated = user.copy(
-                phone = phone,
+                phone = Validation.normalizePhone(phone),
                 photoBase64 = if (photoUri != null) SAMPLE_IMAGE_BASE64 else user.photoBase64,
             )
             backend.users.update { it + (user.id to updated) }
