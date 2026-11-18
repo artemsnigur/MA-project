@@ -1,17 +1,16 @@
-package com.example.cityfixmaas.ui.screens
-
-
+package com.example.cityfixmaas.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
+/** Shown while the session is being restored. */
 @Composable
-fun PlaceholderScreen(name: String, modifier: Modifier = Modifier) {
+fun LoadingScreen(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(name) // TEMP: replaced by real screens in F1+
+        CircularProgressIndicator()
     }
 }
