@@ -1,3 +1,27 @@
 <resources>
     <string name="app_name">CityFixMAAS</string>
+
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_incidents">Incidents</string>
+    <string name="title_incident_detail">Incident details</string>
+    <string name="title_login">Sign in</string>
+    <string name="title_register">Register</string>
+    <string name="title_my_incidents">My incidents</string>
+    <string name="title_report_incident">New incident</string>
+    <string name="title_profile">Profile</string>
+    <string name="title_panel">Operations panel</string>
+    <string name="title_pending">Pending citizens</string>
+    <string name="title_categories">Categories</string>
+
+    <string name="cd_back">Back</string>
+    <string name="cd_dashboard">Dashboard</string>
+    <string name="cd_incident_list">Public incidents</string>
+    <string name="cd_login">Sign in</string>
+    <string name="cd_profile">Profile</string>
+    <string name="cd_pending">Pending registrations</string>
+    <string name="cd_categories">Categories</string>
+    <string name="cd_switch_role">Switch role (debug)</string>
+    <string name="fab_new_incident">New incident</string>
 </resources>
+
+
