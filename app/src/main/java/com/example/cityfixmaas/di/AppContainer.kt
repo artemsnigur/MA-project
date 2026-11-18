@@ -15,6 +15,8 @@ import com.example.cityfixmaas.data.fake.FakeTicketRepository
 import com.example.cityfixmaas.data.fake.FakeUserAdminRepository
 import com.example.cityfixmaas.data.firebase.FirebaseAuthRepository
 import com.example.cityfixmaas.data.firebase.FirebaseCategoryRepository
+import com.example.cityfixmaas.data.firebase.FirebaseMediaRepository
+import com.example.cityfixmaas.data.firebase.FirebaseTicketRepository
 import com.example.cityfixmaas.data.firebase.FirebaseUserAdminRepository
 import com.example.cityfixmaas.data.repository.AuthRepository
 import com.example.cityfixmaas.data.repository.CategoryRepository
@@ -70,8 +72,8 @@ class FakeAppContainer : AppContainer {
 }
 
 /**
- * Real data from Firebase. Auth, users and categories are done (B1); the rest is still fake
- * until B2–B3. CityFixApp keeps using the fake container until then.
+ * Real data from Firebase. Auth, users, categories, tickets and photos are done (B1–B2); public
+ * data, messages and location are still fake until B3. CityFixApp keeps using the fake container until then.
  */
 class FirebaseAppContainer(context: Context) : AppContainer {
     private val firebaseAuth = FirebaseAuth.getInstance()
@@ -82,8 +84,8 @@ class FirebaseAppContainer(context: Context) : AppContainer {
     override val auth: AuthRepository = FirebaseAuthRepository(context, firebaseAuth, db, scope)
     override val userAdmin: UserAdminRepository = FirebaseUserAdminRepository(db)
     override val categories: CategoryRepository = FirebaseCategoryRepository(db)
-    override val tickets: TicketRepository = FakeTicketRepository(fakes) // B2
-    override val media: MediaRepository = FakeMediaRepository(fakes) // B2
+    override val tickets: TicketRepository = FirebaseTicketRepository(context, firebaseAuth, db)
+    override val media: MediaRepository = FirebaseMediaRepository(db)
     override val publicData: PublicRepository = FakePublicRepository(fakes) // B3
     override val messages: MessageRepository = FakeMessageRepository(fakes) // B3
     override val location: LocationProvider = FakeLocationProvider() // B3
