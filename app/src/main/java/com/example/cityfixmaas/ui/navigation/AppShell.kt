@@ -26,7 +26,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.cityfixmaas.R
+import com.example.cityfixmaas.ui.auth.AccountPendingScreen
+import com.example.cityfixmaas.ui.auth.LoginRoute
+import com.example.cityfixmaas.ui.auth.RegisterRoute
 import com.example.cityfixmaas.ui.components.MainTopAppBar
+import com.example.cityfixmaas.ui.profile.ProfileRoute
 
 /**
  * Root of the UI: picks the graph from the session and hosts the shared Scaffold.
@@ -77,12 +81,18 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 composable<IncidentDetailRoute> { entry ->
                     PlaceholderScreen(R.string.title_incident_detail, detail = entry.toRoute<IncidentDetailRoute>().incidentId)
                 }
-                composable<LoginRoute> { PlaceholderScreen(R.string.title_login) }
-                composable<RegisterRoute> { PlaceholderScreen(R.string.title_register) }
+                composable<LoginRoute> {
+                    LoginRoute(onNavigateToRegister = { navController.navigate(RegisterRoute) })
+                }
+                composable<RegisterRoute> {
+                    RegisterRoute(onNavigateToLogin = { navController.navigateUp() })
+                }
                 composable<MyIncidentsRoute> { PlaceholderScreen(R.string.title_my_incidents) }
                 composable<ReportIncidentRoute> { PlaceholderScreen(R.string.title_report_incident) }
-                composable<ProfileRoute> { PlaceholderScreen(R.string.title_profile) }
-                composable<AccountPendingRoute> { PlaceholderScreen(R.string.title_account_pending) }
+                composable<ProfileRoute> { ProfileRoute() }
+                composable<AccountPendingRoute> {
+                    AccountPendingScreen(onSignOut = sessionViewModel::signOut)
+                }
                 composable<PanelRoute> { PlaceholderScreen(R.string.title_panel) }
                 composable<PendingCitizensRoute> { PlaceholderScreen(R.string.title_pending) }
                 composable<CategoriesRoute> { PlaceholderScreen(R.string.title_categories) }

@@ -24,4 +24,53 @@
     <string name="cd_categories">Categories</string>
     <string name="cd_switch_role">Switch demo account (debug)</string>
     <string name="fab_new_incident">New incident</string>
+
+    <!-- Validation -->
+    <string name="validation_required">This field is required</string>
+    <string name="validation_email_invalid">Enter a valid email</string>
+    <string name="validation_email_not_municipal">Operators must use an @cm-coimbra.pt email</string>
+    <string name="validation_password_short">Password must have at least 6 characters</string>
+    <string name="validation_password_mismatch">Passwords do not match</string>
+    <string name="validation_phone_invalid">Phone must have 9 digits</string>
+    <string name="validation_nif_invalid">Enter a valid 9-digit NIF</string>
+    <string name="validation_location_required">Location is required for citizen accounts</string>
+
+    <!-- Auth & Forms -->
+    <string name="label_email">Email</string>
+    <string name="label_password">Password</string>
+    <string name="label_confirm_password">Confirm password</string>
+    <string name="label_name">Full name</string>
+    <string name="label_phone">Phone number</string>
+    <string name="label_nif">NIF</string>
+    <string name="label_role">Role</string>
+    <string name="label_status">Status</string>
+    <string name="label_location">Registration location</string>
+    <string name="label_impact_detection">Automatic impact detection</string>
+    <string name="role_citizen">Citizen</string>
+    <string name="role_operator">Operator</string>
+    <string name="action_sign_in">Sign in</string>
+    <string name="action_register">Register</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_send">Send</string>
+    <string name="action_save">Save changes</string>
+    <string name="action_forgot_password">Forgot password?</string>
+    <string name="prompt_no_account">Don\'t have an account? Register</string>
+    <string name="prompt_has_account">Already have an account? Sign in</string>
+    <string name="forgot_password_title">Reset password</string>
+    <string name="forgot_password_desc">Enter your email and we will send a password reset link.</string>
+    <string name="forgot_password_success">Password reset email sent</string>
+
+    <!-- Account Pending -->
+    <string name="pending_title">Account Pending Approval</string>
+    <string name="pending_desc">Your citizen registration has been submitted and is awaiting approval by a municipal operator. You will be able to access the app once activated.</string>
+
+    <!-- Profile -->
+    <string name="action_change_photo">Change photo</string>
+    <string name="profile_updated_success">Profile updated successfully</string>
+    <string name="location_captured">Location captured: %1$.4f, %2$.4f</string>
+    <string name="location_not_set">Location not set</string>
+    <string name="capture_location">Capture location</string>
+    <string name="status_active">Active</string>
+    <string name="status_pending">Pending</string>
+    <string name="cd_profile_photo">Profile photo</string>
 </resources>

@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
@@ -51,9 +52,10 @@ fun MainTopAppBar(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val isHome = navController.previousBackStackEntry == null
+    val titleRes = remember(destination) { titleFor(destination) }
 
     TopAppBar(
-        title = { Text(stringResource(titleFor(destination))) },
+        title = { Text(stringResource(titleRes)) },
         navigationIcon = {
             if (!isHome) {
                 IconButton(onClick = { navController.navigateUp() }) {

@@ -22,4 +22,53 @@
     <string name="cd_categories">Categorias</string>
     <string name="cd_switch_role">Mudar conta de demonstração (debug)</string>
     <string name="fab_new_incident">Nova ocorrência</string>
+
+    <!-- Validation -->
+    <string name="validation_required">Campo obrigatório</string>
+    <string name="validation_email_invalid">Introduza um email válido</string>
+    <string name="validation_email_not_municipal">Operadores devem usar email @cm-coimbra.pt</string>
+    <string name="validation_password_short">A palavra-passe deve ter pelo menos 6 carateres</string>
+    <string name="validation_password_mismatch">As palavras-passe não coincidem</string>
+    <string name="validation_phone_invalid">O telefone deve ter 9 dígitos</string>
+    <string name="validation_nif_invalid">Introduza um NIF válido de 9 dígitos</string>
+    <string name="validation_location_required">A localização é obrigatória para cidadãos</string>
+
+    <!-- Auth & Forms -->
+    <string name="label_email">Email</string>
+    <string name="label_password">Palavra-passe</string>
+    <string name="label_confirm_password">Confirmar palavra-passe</string>
+    <string name="label_name">Nome completo</string>
+    <string name="label_phone">Telefone</string>
+    <string name="label_nif">NIF</string>
+    <string name="label_role">Perfil</string>
+    <string name="label_status">Estado</string>
+    <string name="label_location">Localização de registo</string>
+    <string name="label_impact_detection">Deteção automática de impacto</string>
+    <string name="role_citizen">Cidadão</string>
+    <string name="role_operator">Operador</string>
+    <string name="action_sign_in">Iniciar sessão</string>
+    <string name="action_register">Registar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_send">Enviar</string>
+    <string name="action_save">Guardar alterações</string>
+    <string name="action_forgot_password">Esqueceu-se da palavra-passe?</string>
+    <string name="prompt_no_account">Não tem conta? Registe-se</string>
+    <string name="prompt_has_account">Já tem conta? Inicie sessão</string>
+    <string name="forgot_password_title">Repor palavra-passe</string>
+    <string name="forgot_password_desc">Introduza o seu email para enviarmos uma ligação de reposição de palavra-passe.</string>
+    <string name="forgot_password_success">Email de reposição de palavra-passe enviado</string>
+
+    <!-- Account Pending -->
+    <string name="pending_title">Conta Pendente de Aprovação</string>
+    <string name="pending_desc">O seu registo de cidadão foi submetido e aguarda aprovação por um operador municipal. Terá acesso à aplicação após a ativação.</string>
+
+    <!-- Profile -->
+    <string name="action_change_photo">Alterar foto</string>
+    <string name="profile_updated_success">Perfil atualizado com sucesso</string>
+    <string name="location_captured">Localização capturada: %1$.4f, %2$.4f</string>
+    <string name="location_not_set">Localização não definida</string>
+    <string name="capture_location">Capturar localização</string>
+    <string name="status_active">Ativo</string>
+    <string name="status_pending">Pendente</string>
+    <string name="cd_profile_photo">Foto de perfil</string>
 </resources>
