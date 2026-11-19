@@ -30,7 +30,11 @@ import com.example.cityfixmaas.ui.auth.AccountPendingScreen
 import com.example.cityfixmaas.ui.auth.LoginRoute
 import com.example.cityfixmaas.ui.auth.RegisterRoute
 import com.example.cityfixmaas.ui.components.MainTopAppBar
+import com.example.cityfixmaas.ui.operator.PendingCitizensScreen
 import com.example.cityfixmaas.ui.profile.ProfileRoute
+import com.example.cityfixmaas.ui.tickets.IncidentDetailScreen
+import com.example.cityfixmaas.ui.tickets.ReportIncidentScreen
+import com.example.cityfixmaas.ui.tickets.TicketListScreen
 
 /**
  * Root of the UI: picks the graph from the session and hosts the shared Scaffold.
@@ -60,7 +64,6 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                     mode = currentMode,
                     onNavigate = { navController.navigate(it) { launchSingleTop = true } },
                     onSignOut = sessionViewModel::signOut,
-                    onCycleDemoAccount = sessionViewModel::cycleDemoAccount,
                 )
             },
             floatingActionButton = {
@@ -79,7 +82,10 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 composable<DashboardRoute> { PlaceholderScreen(R.string.title_dashboard) }
                 composable<IncidentListRoute> { PlaceholderScreen(R.string.title_incidents) }
                 composable<IncidentDetailRoute> { entry ->
-                    PlaceholderScreen(R.string.title_incident_detail, detail = entry.toRoute<IncidentDetailRoute>().incidentId)
+                    IncidentDetailScreen(
+                        ticketId = entry.toRoute<IncidentDetailRoute>().incidentId,
+                        isOperator = currentMode == AppMode.OPERATOR,
+                    )
                 }
                 composable<LoginRoute> {
                     LoginRoute(onNavigateToRegister = { navController.navigate(RegisterRoute) })
@@ -87,14 +93,18 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 composable<RegisterRoute> {
                     RegisterRoute(onNavigateToLogin = { navController.navigateUp() })
                 }
-                composable<MyIncidentsRoute> { PlaceholderScreen(R.string.title_my_incidents) }
-                composable<ReportIncidentRoute> { PlaceholderScreen(R.string.title_report_incident) }
+                composable<MyIncidentsRoute> {
+                    TicketListScreen(allTickets = false, onOpen = { navController.navigate(IncidentDetailRoute(it)) })
+                }
+                composable<ReportIncidentRoute> { ReportIncidentScreen(onDone = { navController.popBackStack() }) }
                 composable<ProfileRoute> { ProfileRoute() }
                 composable<AccountPendingRoute> {
                     AccountPendingScreen(onSignOut = sessionViewModel::signOut)
                 }
-                composable<PanelRoute> { PlaceholderScreen(R.string.title_panel) }
-                composable<PendingCitizensRoute> { PlaceholderScreen(R.string.title_pending) }
+                composable<PanelRoute> {
+                    TicketListScreen(allTickets = true, onOpen = { navController.navigate(IncidentDetailRoute(it)) })
+                }
+                composable<PendingCitizensRoute> { PendingCitizensScreen() }
                 composable<CategoriesRoute> { PlaceholderScreen(R.string.title_categories) }
             }
         }
