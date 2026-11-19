@@ -99,4 +99,25 @@
     <string name="type_breakdown">Avaria</string>
     <string name="type_destruction">Destruição</string>
     <string name="type_theft">Furto</string>
+
+    <!-- F2: Incident Reporting & Details -->
+    <string name="report_camera">Tirar fotografia</string>
+    <string name="report_pick_photos">Galeria</string>
+    <string name="report_location">Localização da ocorrência</string>
+    <string name="report_location_captured">Localização: %1$.4f, %2$.4f</string>
+    <string name="report_location_detecting">A obter localização…</string>
+    <string name="report_location_refresh">Atualizar localização</string>
+    <string name="report_error_category">Por favor selecione uma categoria</string>
+    <string name="report_error_description">Por favor introduza uma descrição</string>
+    <string name="report_error_photos">É necessária pelo menos uma fotografia</string>
+    <string name="report_remove_photo">Remover fotografia</string>
+    <string name="permission_location_rationale">A permissão de localização é necessária para registar onde ocorreu o incidente.</string>
+    <string name="permission_camera_rationale">A permissão de câmara é necessária para tirar fotografias da ocorrência.</string>
+    <string name="retry_upload">Tentar novamente</string>
+    <string name="detail_messages">Mensagens</string>
+    <string name="message_hint">Escreva uma mensagem…</string>
+    <string name="message_send">Enviar mensagem</string>
+    <string name="message_operator_badge">Operador</string>
+    <string name="message_citizen_badge">Cidadão</string>
+    <string name="messages_empty">Ainda sem mensagens. Envie uma mensagem para comunicar sobre esta ocorrência.</string>
 </resources>

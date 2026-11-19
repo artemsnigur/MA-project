@@ -101,4 +101,25 @@
     <string name="type_breakdown">Breakdown</string>
     <string name="type_destruction">Destruction</string>
     <string name="type_theft">Theft</string>
+
+    <!-- F2: Incident Reporting & Details -->
+    <string name="report_camera">Take photo</string>
+    <string name="report_pick_photos">Gallery</string>
+    <string name="report_location">Incident location</string>
+    <string name="report_location_captured">Location: %1$.4f, %2$.4f</string>
+    <string name="report_location_detecting">Detecting location…</string>
+    <string name="report_location_refresh">Refresh location</string>
+    <string name="report_error_category">Please select a category</string>
+    <string name="report_error_description">Please enter a description</string>
+    <string name="report_error_photos">At least one photo is required</string>
+    <string name="report_remove_photo">Remove photo</string>
+    <string name="permission_location_rationale">Location permission is needed to report the incident location.</string>
+    <string name="permission_camera_rationale">Camera permission is needed to take a photo of the incident.</string>
+    <string name="retry_upload">Retry upload</string>
+    <string name="detail_messages">Messages</string>
+    <string name="message_hint">Write a message…</string>
+    <string name="message_send">Send message</string>
+    <string name="message_operator_badge">Operator</string>
+    <string name="message_citizen_badge">Citizen</string>
+    <string name="messages_empty">No messages yet. Send a message to communicate about this incident.</string>
 </resources>

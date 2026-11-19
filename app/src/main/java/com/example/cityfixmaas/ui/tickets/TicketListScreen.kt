@@ -5,20 +5,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -65,28 +72,95 @@ fun TicketListScreen(
     val categoryNames by viewModel.categoryNames.collectAsStateWithLifecycle()
 
     if (tickets.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.tickets_empty)) }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.tickets_empty),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         return
     }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         items(tickets, key = { it.id }) { ticket ->
-            TicketCard(ticket, categoryNames[ticket.categoryId] ?: ticket.categoryId, onClick = { onOpen(ticket.id) })
+            TicketCard(
+                ticket = ticket,
+                categoryName = categoryNames[ticket.categoryId] ?: ticket.categoryId,
+                onClick = { onOpen(ticket.id) },
+            )
         }
     }
 }
 
 @Composable
 private fun TicketCard(ticket: Ticket, categoryName: String, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Base64Image(ticket.media.firstOrNull()?.thumbnailBase64, Modifier.size(64.dp))
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            ) {
+                Base64Image(
+                    ticket.media.firstOrNull()?.thumbnailBase64,
+                    Modifier.fillMaxSize(),
+                )
+            }
             Column(Modifier.weight(1f)) {
-                Text(categoryName, style = MaterialTheme.typography.titleMedium)
-                Text(ticket.description, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        categoryName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    SuggestionChip(
+                        onClick = onClick,
+                        label = {
+                            Text(
+                                stringResource(ticket.lifecycleState.labelRes()),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = null,
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
+
                 Text(
-                    stringResource(ticket.lifecycleState.labelRes()) + " · " + formatTime(ticket.createdAt),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    ticket.description,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    stringResource(ticket.incidentType.labelRes()) + " · " + formatTime(ticket.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
         }
