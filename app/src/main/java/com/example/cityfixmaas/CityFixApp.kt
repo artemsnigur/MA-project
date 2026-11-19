@@ -6,11 +6,10 @@ import com.example.cityfixmaas.di.FakeAppContainer
 import com.example.cityfixmaas.di.FirebaseAppContainer
 
 class CityFixApp : Application() {
-    /** Fake data for UI work. Becomes FirebaseAppContainer(this) once B3 is merged. */
+    /** Real Firebase data; set USE_FIREBASE = false to try screens with the in-memory fakes. */
     val container: AppContainer by lazy { if (USE_FIREBASE) FirebaseAppContainer(this) else FakeAppContainer() }
 
     companion object {
-        /** Set to true locally to try real sign-in and registration. */
-        const val USE_FIREBASE = false
+        const val USE_FIREBASE = true
     }
 }

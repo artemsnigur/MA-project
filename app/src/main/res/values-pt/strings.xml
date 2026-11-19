@@ -20,7 +20,6 @@
     <string name="cd_profile">Perfil</string>
     <string name="cd_pending">Registos pendentes</string>
     <string name="cd_categories">Categorias</string>
-    <string name="cd_switch_role">Mudar conta de demonstração (debug)</string>
     <string name="fab_new_incident">Nova ocorrência</string>
 
     <!-- Validation -->
@@ -71,4 +70,33 @@
     <string name="status_active">Ativo</string>
     <string name="status_pending">Pendente</string>
     <string name="cd_profile_photo">Foto de perfil</string>
+    <string name="tickets_empty">Ainda não há ocorrências</string>
+    <string name="report_category">Categoria</string>
+    <string name="report_type">Tipo</string>
+    <string name="report_description">Descrição</string>
+    <string name="report_public">Pública (todos podem ver, sem o seu nome)</string>
+    <string name="report_add_photos">Adicionar fotos</string>
+    <string name="report_photos_selected">Fotos selecionadas: %1$d</string>
+    <string name="report_send">Enviar</string>
+    <string name="detail_public">Pública</string>
+    <string name="detail_private">Privada</string>
+    <string name="detail_photos">Fotos</string>
+    <string name="detail_change_state">Alterar estado</string>
+    <string name="detail_add_resolution_photos">Adicionar fotos do trabalho concluído</string>
+    <string name="detail_history">Histórico</string>
+    <string name="photo_uploading">A enviar…</string>
+    <string name="photo_failed">Falha no envio</string>
+    <string name="photo_resolution">Resolução</string>
+    <string name="pending_empty">Nenhum cidadão à espera de ativação</string>
+    <string name="pending_details">Telefone %1$s · NIF %2$s</string>
+    <string name="pending_activate">Ativar</string>
+    <string name="state_open">Aberta</string>
+    <string name="state_information_request">Pedido de informação</string>
+    <string name="state_in_resolution">Em resolução</string>
+    <string name="state_resolved">Resolvida</string>
+    <string name="state_closed">Fechada</string>
+    <string name="type_damage">Dano</string>
+    <string name="type_breakdown">Avaria</string>
+    <string name="type_destruction">Destruição</string>
+    <string name="type_theft">Furto</string>
 </resources>

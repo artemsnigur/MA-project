@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,7 +46,6 @@ fun MainTopAppBar(
     mode: AppMode,
     onNavigate: (Any) -> Unit,
     onSignOut: () -> Unit,
-    onCycleDemoAccount: () -> Unit, // TEMP (F0): remove once login works
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
@@ -77,16 +75,16 @@ fun MainTopAppBar(
                         ActionIcon(Icons.Default.BarChart, R.string.cd_dashboard) { onNavigate(DashboardRoute) }
                         ActionIcon(Icons.AutoMirrored.Filled.List, R.string.cd_incident_list) { onNavigate(IncidentListRoute) }
                         ActionIcon(Icons.Default.Person, R.string.cd_profile) { onNavigate(ProfileRoute) }
+                        ActionIcon(Icons.AutoMirrored.Filled.Logout, R.string.cd_sign_out, onSignOut)
                     }
                     AppMode.OPERATOR -> {
                         ActionIcon(Icons.Default.HowToReg, R.string.cd_pending) { onNavigate(PendingCitizensRoute) }
                         ActionIcon(Icons.Default.Category, R.string.cd_categories) { onNavigate(CategoriesRoute) }
                         ActionIcon(Icons.Default.Person, R.string.cd_profile) { onNavigate(ProfileRoute) }
+                        ActionIcon(Icons.AutoMirrored.Filled.Logout, R.string.cd_sign_out, onSignOut)
                     }
                 }
             }
-            // TEMP (F0): remove once login works
-            ActionIcon(Icons.Default.SwapHoriz, R.string.cd_switch_role, onCycleDemoAccount)
         },
     )
 }

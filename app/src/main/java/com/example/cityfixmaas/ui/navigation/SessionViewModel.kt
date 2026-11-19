@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.cityfixmaas.data.fake.FakeBackend
 import com.example.cityfixmaas.data.model.AccountStatus
 import com.example.cityfixmaas.data.model.SessionState
 import com.example.cityfixmaas.data.model.UserRole
@@ -29,22 +28,6 @@ class SessionViewModel(private val auth: AuthRepository) : ViewModel() {
 
     fun signOut() {
         viewModelScope.launch { auth.signOut() }
-    }
-
-    /**
-     * TEMP (F0, fakes only): signs in as the next demo account so every set of screens can be
-     * checked before the login screen exists. Remove in F1.
-     */
-    fun cycleDemoAccount() {
-        viewModelScope.launch {
-            val email = (auth.session.value as? SessionState.SignedIn)?.user?.email
-            when (email) {
-                null -> auth.signIn("rui@example.com", FakeBackend.DEMO_PASSWORD)
-                "rui@example.com" -> auth.signIn("ana@cm-coimbra.pt", FakeBackend.DEMO_PASSWORD)
-                "ana@cm-coimbra.pt" -> auth.signIn("marta@example.com", FakeBackend.DEMO_PASSWORD)
-                else -> auth.signOut()
-            }
-        }
     }
 
     private fun toMode(session: SessionState): AppMode? = when (session) {
