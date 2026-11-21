@@ -22,18 +22,10 @@ android {
     }
 
     buildTypes {
-        debug {
-            // Faster incremental builds: skip R8 in debug
-            isDebuggable = true
-        }
         release {
             optimization {
-                enable = true
+                enable = false
             }
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
     }
     compileOptions {
@@ -42,11 +34,6 @@ android {
     }
     buildFeatures {
         compose = true
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
     }
 }
 

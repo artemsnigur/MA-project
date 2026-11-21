@@ -33,7 +33,6 @@ import com.example.cityfixmaas.data.repository.PublicRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.data.repository.UserAdminRepository
 import com.example.cityfixmaas.data.roundedForPublic
-import com.example.cityfixmaas.data.validation.Validation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -76,7 +75,6 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
     }
 
     private fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
-        Validation.registration(form, role)?.let { throw IllegalArgumentException(it) }
         val email = form.email.trim().lowercase()
         val users = backend.users.value.values
         require(users.none { it.email == email }) { "This email is already registered" }
@@ -101,7 +99,6 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         latency()
         return attempt {
             val user = backend.requireUser()
-            Validation.phone(phone)?.let { throw IllegalArgumentException(it) }
             val updated = user.copy(
                 phone = phone.trim(),
                 photoBase64 = if (photoUri != null) SAMPLE_IMAGE_BASE64 else user.photoBase64,
@@ -240,17 +237,6 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             val photos = photoUris.map { newMedia(ticketId, MediaPhase.RESOLUTION, at) }
             backend.tickets.update { it + (ticketId to ticket.copy(media = ticket.media + photos.map { p -> p.first }, updatedAt = at)) }
             backend.media.update { it + (ticketId to it[ticketId].orEmpty() + photos.map { p -> p.second }) }
-        }
-    }
-
-    override suspend fun retryUploads(ticketId: String) {
-        latency()
-        backend.tickets.update { tickets ->
-            val ticket = tickets[ticketId] ?: return@update tickets
-            val media = ticket.media.map {
-                if (it.uploadState == UploadState.FAILED) it.copy(uploadState = UploadState.DONE) else it
-            }
-            tickets + (ticketId to ticket.copy(media = media))
         }
     }
 

@@ -58,7 +58,6 @@
     <string name="prompt_has_account">Já tem conta? Inicie sessão</string>
     <string name="forgot_password_title">Repor palavra-passe</string>
     <string name="forgot_password_desc">Introduza o seu email para enviarmos uma ligação de reposição de palavra-passe.</string>
-    <string name="forgot_password_success">Email de reposição de palavra-passe enviado</string>
 
     <!-- Account Pending -->
     <string name="pending_title">Conta Pendente de Aprovação</string>
@@ -78,7 +77,6 @@
     <string name="report_type">Tipo</string>
     <string name="report_description">Descrição</string>
     <string name="report_public">Pública (todos podem ver, sem o seu nome)</string>
-    <string name="report_add_photos">Adicionar fotos</string>
     <string name="report_photos_selected">Fotos selecionadas: %1$d</string>
     <string name="report_send">Enviar</string>
     <string name="detail_public">Pública</string>
@@ -106,17 +104,11 @@
     <!-- F2: Incident Reporting & Details -->
     <string name="report_camera">Tirar fotografia</string>
     <string name="report_pick_photos">Galeria</string>
-    <string name="report_location">Localização da ocorrência</string>
     <string name="report_location_captured">Localização: %1$.4f, %2$.4f</string>
     <string name="report_location_detecting">A obter localização…</string>
     <string name="report_location_refresh">Atualizar localização</string>
-    <string name="report_error_category">Por favor selecione uma categoria</string>
-    <string name="report_error_description">Por favor introduza uma descrição</string>
     <string name="report_error_photos">É necessária pelo menos uma fotografia</string>
     <string name="report_remove_photo">Remover fotografia</string>
-    <string name="permission_location_rationale">A permissão de localização é necessária para registar onde ocorreu o incidente.</string>
-    <string name="permission_camera_rationale">A permissão de câmara é necessária para tirar fotografias da ocorrência.</string>
-    <string name="retry_upload">Tentar novamente</string>
     <string name="detail_messages">Mensagens</string>
     <string name="message_hint">Escreva uma mensagem…</string>
     <string name="message_send">Enviar mensagem</string>
@@ -125,14 +117,11 @@
     <string name="messages_empty">Ainda sem mensagens. Envie uma mensagem para comunicar sobre esta ocorrência.</string>
 
     <!-- F3: Operator & Anonymous -->
-    <string name="filter_all_states">Todos os estados</string>
-    <string name="filter_all_categories">Todas as categorias</string>
-    <string name="author_contact">Autor: %1$s · %2$s</string>
+    <string name="author_contact">Autor: %1$s · %2$s · %3$s</string>
     <string name="exact_coordinates">Coords: %1$.5f, %2$.5f</string>
     <string name="dialog_state_change_title">Alterar estado da ocorrência</string>
     <string name="dialog_state_note_label">Nota / observações (opcional)</string>
     <string name="dialog_state_confirm">Confirmar alteração</string>
-    <string name="dialog_resolution_photo_required">É necessária pelo menos uma foto de resolução antes de marcar como Resolvida.</string>
     <string name="categories_empty">Nenhuma categoria criada</string>
     <string name="category_add">Nova categoria</string>
     <string name="category_edit">Editar categoria</string>
@@ -149,9 +138,6 @@
     <string name="dashboard_avg_repair_hours">Tempo Médio de Reparação</string>
     <string name="dashboard_hours_unit">horas</string>
     <string name="dashboard_no_repairs_yet">Ainda sem dados</string>
-    <string name="dashboard_view_public_list">Ver Ocorrências e Mapa</string>
-    <string name="public_incidents_title">Ocorrências Públicas</string>
-    <string name="map_view">Mapa</string>
-    <string name="list_view">Lista</string>
+    <string name="dashboard_view_public_list">Ver ocorrências públicas</string>
     <string name="approx_location">Localização aprox.: %1$.2f, %2$.2f</string>
 </resources>

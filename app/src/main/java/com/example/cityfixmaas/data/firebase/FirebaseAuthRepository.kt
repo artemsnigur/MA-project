@@ -10,7 +10,6 @@ import com.example.cityfixmaas.data.model.SessionState
 import com.example.cityfixmaas.data.model.User
 import com.example.cityfixmaas.data.model.UserRole
 import com.example.cityfixmaas.data.repository.AuthRepository
-import com.example.cityfixmaas.data.validation.Validation
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
@@ -76,13 +75,12 @@ class FirebaseAuthRepository(
     }
 
     /**
-     * 1. Check the form. 2. Create the Firebase Auth account (this also signs in).
-     * 3. Make sure no other user with this role has the same NIF; if one does, delete the new
-     *    account again. 4. Save the profile in users/{uid}.
+     * The form is already checked by RegisterViewModel (ui/auth/Validation).
+     * 1. Create the Firebase Auth account (this also signs in).
+     * 2. Make sure no other user with this role has the same NIF; if one does, delete the new
+     *    account again. 3. Save the profile in users/{uid}.
      */
     private suspend fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
-        Validation.registration(form, role)?.let { error -> throw IllegalArgumentException(error) }
-
         val email = form.email.trim().lowercase()
         val account = auth.createUserWithEmailAndPassword(email, form.password).await().user!!
 
@@ -117,7 +115,6 @@ class FirebaseAuthRepository(
     }
 
     override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> = runCatching {
-        Validation.phone(phone)?.let { error -> throw IllegalArgumentException(error) }
         val uid = auth.currentUser!!.uid
         val changes = mutableMapOf<String, Any>("phone" to phone.trim())
         if (photoUri != null) changes["photoBase64"] = toBase64(photoUri)

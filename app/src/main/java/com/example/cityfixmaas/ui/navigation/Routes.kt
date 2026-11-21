@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 // Public / shared
 @Serializable data object DashboardRoute
 @Serializable data object IncidentListRoute
-@Serializable data class IncidentDetailRoute(val incidentId: String)
+@Serializable data class IncidentDetailRoute(val incidentId: String) // full ticket: author and operators
+@Serializable data class PublicIncidentDetailRoute(val incidentId: String) // public copy: anyone
 @Serializable data object LoginRoute
 @Serializable data object RegisterRoute
 

@@ -54,93 +54,16 @@ class RegisterViewModel(
         captureLocation()
     }
 
-    fun onRoleChange(role: UserRole) {
-        _uiState.update {
-            it.copy(
-                role = role,
-                emailError = if (it.email.isNotBlank()) {
-                    Validation.email(it.email, municipalOnly = role == UserRole.OPERATOR)
-                } else null,
-                locationError = null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onNameChange(value: String) {
-        _uiState.update {
-            it.copy(
-                name = value,
-                nameError = if (it.nameError != null) Validation.name(value) else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onEmailChange(value: String) {
-        _uiState.update {
-            it.copy(
-                email = value,
-                emailError = if (it.emailError != null) {
-                    Validation.email(value, municipalOnly = it.role == UserRole.OPERATOR)
-                } else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onPasswordChange(value: String) {
-        _uiState.update {
-            it.copy(
-                password = value,
-                passwordError = if (it.passwordError != null) Validation.password(value) else null,
-                confirmPasswordError = if (it.confirmPassword.isNotEmpty()) {
-                    Validation.passwordMatch(value, it.confirmPassword)
-                } else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onConfirmPasswordChange(value: String) {
-        _uiState.update {
-            it.copy(
-                confirmPassword = value,
-                confirmPasswordError = if (it.confirmPasswordError != null) {
-                    Validation.passwordMatch(it.password, value)
-                } else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onPhoneChange(value: String) {
-        _uiState.update {
-            it.copy(
-                phone = value,
-                phoneError = if (it.phoneError != null) Validation.phone(value) else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onNifChange(value: String) {
-        _uiState.update {
-            it.copy(
-                nif = value,
-                nifError = if (it.nifError != null) Validation.nif(value) else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onPhotoSelected(uri: Uri?) {
-        _uiState.update { it.copy(photoUri = uri) }
-    }
-
-    fun onImpactDetectionToggled(enabled: Boolean) {
-        _uiState.update { it.copy(impactDetectionEnabled = enabled) }
-    }
+    // Typing only stores the value and clears that field's error; everything is checked on "Register".
+    fun onRoleChange(role: UserRole) = _uiState.update { it.copy(role = role, emailError = null, locationError = null, errorMessage = null) }
+    fun onNameChange(value: String) = _uiState.update { it.copy(name = value, nameError = null) }
+    fun onEmailChange(value: String) = _uiState.update { it.copy(email = value, emailError = null) }
+    fun onPasswordChange(value: String) = _uiState.update { it.copy(password = value, passwordError = null) }
+    fun onConfirmPasswordChange(value: String) = _uiState.update { it.copy(confirmPassword = value, confirmPasswordError = null) }
+    fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value, phoneError = null) }
+    fun onNifChange(value: String) = _uiState.update { it.copy(nif = value, nifError = null) }
+    fun onPhotoSelected(uri: Uri?) = _uiState.update { it.copy(photoUri = uri) }
+    fun onImpactDetectionToggled(enabled: Boolean) = _uiState.update { it.copy(impactDetectionEnabled = enabled) }
 
     fun captureLocation() {
         viewModelScope.launch {
@@ -203,19 +126,7 @@ class RegisterViewModel(
             } else {
                 auth.registerOperator(form)
             }
-            result.fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Registration failed",
-                        )
-                    }
-                },
-            )
+            _uiState.update { it.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message) }
         }
     }
 

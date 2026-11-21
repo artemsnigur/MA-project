@@ -50,26 +50,11 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
         }
     }
 
-    fun onPhoneChange(value: String) {
-        _uiState.update {
-            it.copy(
-                phone = value,
-                phoneError = if (it.phoneError != null) Validation.phone(value) else null,
-                saveSuccess = false,
-                errorMessage = null,
-            )
-        }
-    }
+    fun onPhoneChange(value: String) =
+        _uiState.update { it.copy(phone = value, phoneError = null, saveSuccess = false, errorMessage = null) }
 
-    fun onPhotoSelected(uri: Uri?) {
-        _uiState.update {
-            it.copy(
-                selectedPhotoUri = uri,
-                saveSuccess = false,
-                errorMessage = null,
-            )
-        }
-    }
+    fun onPhotoSelected(uri: Uri?) =
+        _uiState.update { it.copy(selectedPhotoUri = uri, saveSuccess = false, errorMessage = null) }
 
     fun onSaveClick() {
         val s = _uiState.value
@@ -82,25 +67,14 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null, saveSuccess = false) }
             val result = auth.updateProfile(s.phone.trim(), s.selectedPhotoUri)
-            result.fold(
-                onSuccess = {
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                            selectedPhotoUri = null,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            errorMessage = error.message ?: "Failed to update profile",
-                        )
-                    }
-                },
-            )
+            _uiState.update {
+                it.copy(
+                    isSaving = false,
+                    saveSuccess = result.isSuccess,
+                    selectedPhotoUri = if (result.isSuccess) null else it.selectedPhotoUri,
+                    errorMessage = result.exceptionOrNull()?.message,
+                )
+            }
         }
     }
 
