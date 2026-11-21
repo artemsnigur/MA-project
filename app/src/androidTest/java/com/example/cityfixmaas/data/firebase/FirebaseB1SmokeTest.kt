@@ -60,7 +60,7 @@ class FirebaseB1SmokeTest {
 
         // Sign in and edit the phone.
         repo.signIn(citizenEmail, password).getOrThrow()
-        repo.updateProfile("239123456", null).getOrThrow()
+        repo.updateProfile("239123456", null, impactDetectionEnabled = false).getOrThrow()
         waitFor(repo.session) { (it as? SessionState.SignedIn)?.user?.phone == "239123456" }
         repo.signOut()
 

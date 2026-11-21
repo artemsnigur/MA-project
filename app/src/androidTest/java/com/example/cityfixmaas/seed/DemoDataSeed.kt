@@ -74,7 +74,7 @@ class DemoDataSeed {
         // 1. The citizen reports everything.
         auth.signInWithEmailAndPassword("rui.demo@example.com", password).await()
         val ids = demos.mapIndexed { i, d ->
-            tickets.createTicket(TicketDraft(d.category, d.type, d.text, d.public, d.where, listOf(photo("report$i", d.color)))).getOrThrow()
+            tickets.createTicket(TicketDraft(d.category, d.type, d.text, d.public, d.where, listOf(photo("report$i", d.color)))).getOrThrow().id
         }
         ids.forEach { waitUploaded(it) }
 

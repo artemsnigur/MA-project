@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.ui.profile
 
+import androidx.compose.material3.Switch
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +59,7 @@ fun ProfileScreen(
     state: ProfileUiState,
     onPhoneChange: (String) -> Unit,
     onPhotoSelected: (Uri?) -> Unit,
+    onImpactDetectionToggled: (Boolean) -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -217,6 +219,17 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (user?.role == UserRole.CITIZEN) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(stringResource(R.string.label_impact_detection), modifier = Modifier.weight(1f))
+                Switch(checked = state.impactDetectionEnabled, onCheckedChange = onImpactDetectionToggled)
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Save button
@@ -271,6 +284,7 @@ private fun ProfileScreenPreview() {
             ),
             onPhoneChange = {},
             onPhotoSelected = {},
+            onImpactDetectionToggled = {},
             onSaveClick = {},
         )
     }

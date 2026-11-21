@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.data.fake
 
+import com.example.cityfixmaas.data.model.CreatedTicket
 import android.net.Uri
 import com.example.cityfixmaas.data.AppConfig
 import com.example.cityfixmaas.data.distanceTo
@@ -95,12 +96,13 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> {
+    override suspend fun updateProfile(phone: String, photoUri: Uri?, impactDetectionEnabled: Boolean): Result<Unit> {
         latency()
         return attempt {
             val user = backend.requireUser()
             val updated = user.copy(
                 phone = phone.trim(),
+                impactDetectionEnabled = impactDetectionEnabled,
                 photoBase64 = if (photoUri != null) SAMPLE_IMAGE_BASE64 else user.photoBase64,
             )
             backend.users.update { it + (user.id to updated) }
@@ -163,7 +165,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
 
     override fun observeMyTickets(): Flow<List<Ticket>> =
         combine(backend.tickets, backend.currentUid) { tickets, uid ->
-            tickets.values.filter { it.authorId == uid }.sortedByDescending { it.createdAt }
+            tickets.values.filter { it.authorId == uid || uid in it.followerIds }.sortedByDescending { it.createdAt }
         }
 
     override fun observeAllTickets(): Flow<List<Ticket>> =
@@ -174,7 +176,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
     override fun observeHistory(ticketId: String): Flow<List<StateChange>> =
         backend.history.map { it[ticketId].orEmpty().sortedBy { change -> change.at } }
 
-    override suspend fun createTicket(draft: TicketDraft): Result<String> {
+    override suspend fun createTicket(draft: TicketDraft): Result<CreatedTicket> {
         latency()
         return attempt {
             val user = backend.requireUser()
@@ -184,6 +186,17 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             require(draft.description.isNotBlank()) { "Description is required" }
             require(draft.photoUris.isNotEmpty()) { "Add at least one photo" }
             require(backend.categories.value[draft.categoryId]?.active == true) { "Choose an active category" }
+
+            val duplicate = backend.tickets.value.values.firstOrNull {
+                it.categoryId == draft.categoryId && it.incidentType == draft.incidentType && it.lifecycleState.isActive &&
+                    it.location.distanceTo(draft.location) <= AppConfig.DUPLICATE_RADIUS_METERS
+            }
+            if (duplicate != null) {
+                if (duplicate.authorId != user.id) {
+                    backend.tickets.update { it + (duplicate.id to duplicate.copy(followerIds = (duplicate.followerIds + user.id).distinct())) }
+                }
+                return@attempt CreatedTicket(duplicate.id, joinedExisting = true)
+            }
 
             val id = newId()
             val at = now()
@@ -198,7 +211,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             backend.tickets.update { it + (id to ticket) }
             backend.media.update { it + (id to photos.map { p -> p.second }) }
             appendHistory(id, StateChange(newId(), null, LifecycleState.OPEN, user.id, at))
-            id
+            CreatedTicket(id, joinedExisting = false)
         }
     }
 
@@ -251,7 +264,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
         require(justification.isNotBlank()) { "Explain why the problem is not solved" }
         val user = backend.requireUser()
         val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
-        require(ticket.authorId == user.id) { "Only the author can reopen the ticket" }
+        require(ticket.authorId == user.id || user.id in ticket.followerIds) { "Only the citizens who reported it can reopen the ticket" }
         require(ticket.canReopen(now())) { "The 5 days to reopen have passed" }
         backend.tickets.update { it + (ticketId to ticket.copy(lifecycleState = LifecycleState.OPEN, resolvedAt = null, updatedAt = now(), stateChangedBy = user.id)) }
         appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.OPEN, user.id, now(), justification.trim()))

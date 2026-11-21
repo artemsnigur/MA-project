@@ -207,6 +207,10 @@ fun IncidentDetailScreen(
             }
         }
 
+        if (t.followerIds.isNotEmpty()) {
+            Text(stringResource(R.string.detail_followers, t.followerIds.size), style = MaterialTheme.typography.bodySmall)
+        }
+
         if (isOperator) {
             HorizontalDivider()
             Text(stringResource(R.string.detail_change_state), style = MaterialTheme.typography.titleMedium)

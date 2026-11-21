@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.ui.tickets
 
+import android.widget.Toast
 import android.Manifest
 import android.content.Context
 import android.net.Uri
@@ -94,18 +95,24 @@ data class ReportUiState(
     val isSaving: Boolean = false,
     val error: String? = null,
     val done: Boolean = false,
+    /** The report joined an existing ticket for the same problem nearby. */
+    val joinedExisting: Boolean = false,
 )
 
 class ReportIncidentViewModel(
     private val tickets: TicketRepository,
     categories: CategoryRepository,
     private val locationProvider: LocationProvider,
+    roadDefect: Boolean,
 ) : ViewModel() {
 
     val categories = categories.observeCategories(activeOnly = true)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _state = MutableStateFlow(ReportUiState())
+    /** From Impact Detection the form starts as a road damage report; the citizen can still change it. */
+    private val _state = MutableStateFlow(
+        if (roadDefect) ReportUiState(categoryId = AppConfig.ROAD_CATEGORY_ID, incidentType = IncidentType.DAMAGE) else ReportUiState(),
+    )
     val state = _state.asStateFlow()
 
     init {
@@ -148,6 +155,7 @@ class ReportIncidentViewModel(
                 it.copy(
                     isSaving = false,
                     done = result.isSuccess,
+                    joinedExisting = result.getOrNull()?.joinedExisting == true,
                     error = result.exceptionOrNull()?.message,
                 )
             }
@@ -155,10 +163,10 @@ class ReportIncidentViewModel(
     }
 
     companion object {
-        val Factory = viewModelFactory {
+        fun factory(roadDefect: Boolean) = viewModelFactory {
             initializer {
                 val container = appContainer()
-                ReportIncidentViewModel(container.tickets, container.categories, container.location)
+                ReportIncidentViewModel(container.tickets, container.categories, container.location, roadDefect)
             }
         }
     }
@@ -166,8 +174,9 @@ class ReportIncidentViewModel(
 
 @Composable
 fun ReportIncidentScreen(
+    roadDefect: Boolean,
     onDone: () -> Unit,
-    viewModel: ReportIncidentViewModel = viewModel(factory = ReportIncidentViewModel.Factory),
+    viewModel: ReportIncidentViewModel = viewModel(factory = ReportIncidentViewModel.factory(roadDefect)),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -207,7 +216,10 @@ fun ReportIncidentScreen(
     }
 
     LaunchedEffect(state.done) {
-        if (state.done) onDone()
+        if (state.done) {
+            if (state.joinedExisting) Toast.makeText(context, R.string.report_joined_existing, Toast.LENGTH_LONG).show()
+            onDone()
+        }
     }
 
     Box(

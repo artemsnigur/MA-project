@@ -17,6 +17,7 @@ fun ProfileRoute(
         state = state,
         onPhoneChange = viewModel::onPhoneChange,
         onPhotoSelected = viewModel::onPhotoSelected,
+        onImpactDetectionToggled = viewModel::onImpactDetectionToggled,
         onSaveClick = viewModel::onSaveClick,
         modifier = modifier,
     )

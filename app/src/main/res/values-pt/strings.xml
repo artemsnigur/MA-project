@@ -149,4 +149,10 @@
     <string name="dialog_reopen_title">Reabrir ocorrência</string>
     <string name="dialog_reopen_label">Porque é que o problema não está resolvido? *</string>
     <string name="detail_closed_locked">Esta ocorrência está fechada e já não pode ser alterada.</string>
+    <string name="report_joined_existing">Este problema já foi reportado aqui perto. Passou a acompanhar essa ocorrência.</string>
+    <string name="detail_followers">Também reportado por outros cidadãos: %1$d</string>
+    <string name="impact_dialog_title">Possível buraco</string>
+    <string name="impact_dialog_text">Foi detetado um solavanco forte. Reportar um defeito na estrada aqui?</string>
+    <string name="impact_dialog_report">Reportar</string>
+    <string name="impact_dialog_ignore">Agora não</string>
 </resources>

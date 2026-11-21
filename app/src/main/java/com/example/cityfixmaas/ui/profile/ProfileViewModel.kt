@@ -22,12 +22,13 @@ data class ProfileUiState(
     val phone: String = "",
     val phoneError: FieldError? = null,
     val selectedPhotoUri: Uri? = null,
+    val impactDetectionEnabled: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null,
 ) {
     val hasChanges: Boolean
-        get() = (user != null && phone != user.phone) || selectedPhotoUri != null
+        get() = (user != null && (phone != user.phone || impactDetectionEnabled != user.impactDetectionEnabled)) || selectedPhotoUri != null
 }
 
 class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
@@ -43,6 +44,7 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
                         current.copy(
                             user = session.user,
                             phone = if (current.user == null) session.user.phone else current.phone,
+                            impactDetectionEnabled = if (current.user == null) session.user.impactDetectionEnabled else current.impactDetectionEnabled,
                         )
                     }
                 }
@@ -52,6 +54,9 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
 
     fun onPhoneChange(value: String) =
         _uiState.update { it.copy(phone = value, phoneError = null, saveSuccess = false, errorMessage = null) }
+
+    fun onImpactDetectionToggled(enabled: Boolean) =
+        _uiState.update { it.copy(impactDetectionEnabled = enabled, saveSuccess = false, errorMessage = null) }
 
     fun onPhotoSelected(uri: Uri?) =
         _uiState.update { it.copy(selectedPhotoUri = uri, saveSuccess = false, errorMessage = null) }
@@ -66,7 +71,7 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null, saveSuccess = false) }
-            val result = auth.updateProfile(s.phone.trim(), s.selectedPhotoUri)
+            val result = auth.updateProfile(s.phone.trim(), s.selectedPhotoUri, s.impactDetectionEnabled)
             _uiState.update {
                 it.copy(
                     isSaving = false,
