@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.ui.tickets
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
@@ -35,29 +38,69 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cityfixmaas.R
+import com.example.cityfixmaas.data.model.Category
+import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.Ticket
+import com.example.cityfixmaas.data.model.User
 import com.example.cityfixmaas.data.repository.CategoryRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
+import com.example.cityfixmaas.data.repository.UserAdminRepository
 import com.example.cityfixmaas.di.appContainer
 import com.example.cityfixmaas.ui.components.Base64Image
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-/** Tickets of the signed-in citizen ("My incidents"), or all tickets for the operator panel. */
-class TicketListViewModel(tickets: TicketRepository, categories: CategoryRepository, allTickets: Boolean) : ViewModel() {
+/** Tickets of the signed-in citizen ("My incidents"), or all tickets for the operator panel with filters. */
+class TicketListViewModel(
+    ticketsRepo: TicketRepository,
+    categoriesRepo: CategoryRepository,
+    val allTickets: Boolean,
+) : ViewModel() {
 
-    val tickets = (if (allTickets) tickets.observeAllTickets() else tickets.observeMyTickets())
+    val allCategories = categoriesRepo.observeCategories(activeOnly = false)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Category id → name, so the list shows names instead of ids. */
-    val categoryNames = categories.observeCategories(activeOnly = false)
+    val categoryNames = allCategories
         .map { list -> list.associate { it.id to it.name } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    private val _rawTickets = (if (allTickets) ticketsRepo.observeAllTickets() else ticketsRepo.observeMyTickets())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _selectedState = MutableStateFlow<LifecycleState?>(null)
+    val selectedState = _selectedState.asStateFlow()
+
+    private val _selectedCategoryId = MutableStateFlow<String?>(null)
+    val selectedCategoryId = _selectedCategoryId.asStateFlow()
+
+    val filteredTickets = combine(_rawTickets, _selectedState, _selectedCategoryId) { tickets, stateFilter, catFilter ->
+        tickets.filter { t ->
+            (stateFilter == null || t.lifecycleState == stateFilter) &&
+                (catFilter == null || t.categoryId == catFilter)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun selectStateFilter(state: LifecycleState?) {
+        _selectedState.value = state
+    }
+
+    fun selectCategoryFilter(categoryId: String?) {
+        _selectedCategoryId.value = categoryId
+    }
+
     companion object {
         fun factory(allTickets: Boolean) = viewModelFactory {
-            initializer { TicketListViewModel(appContainer().tickets, appContainer().categories, allTickets) }
+            initializer {
+                val container = appContainer()
+                TicketListViewModel(container.tickets, container.categories, allTickets)
+            }
         }
     }
 }
@@ -68,35 +111,101 @@ fun TicketListScreen(
     onOpen: (ticketId: String) -> Unit,
     viewModel: TicketListViewModel = viewModel(factory = TicketListViewModel.factory(allTickets)),
 ) {
-    val tickets by viewModel.tickets.collectAsStateWithLifecycle()
+    val tickets by viewModel.filteredTickets.collectAsStateWithLifecycle()
     val categoryNames by viewModel.categoryNames.collectAsStateWithLifecycle()
+    val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
+    val selectedState by viewModel.selectedState.collectAsStateWithLifecycle()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
 
-    if (tickets.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                stringResource(R.string.tickets_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    Column(Modifier.fillMaxSize()) {
+        // Filters section (for Operator Panel or list filtering)
+        if (allTickets) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                // State filter row
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = selectedState == null,
+                        onClick = { viewModel.selectStateFilter(null) },
+                        label = { Text(stringResource(R.string.filter_all_states)) },
+                    )
+                    LifecycleState.entries.forEach { state ->
+                        FilterChip(
+                            selected = selectedState == state,
+                            onClick = { viewModel.selectStateFilter(if (selectedState == state) null else state) },
+                            label = { Text(stringResource(state.labelRes())) },
+                        )
+                    }
+                }
+
+                // Category filter row
+                if (allCategories.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = selectedCategoryId == null,
+                            onClick = { viewModel.selectCategoryFilter(null) },
+                            label = { Text(stringResource(R.string.filter_all_categories)) },
+                        )
+                        allCategories.forEach { category ->
+                            FilterChip(
+                                selected = selectedCategoryId == category.id,
+                                onClick = {
+                                    viewModel.selectCategoryFilter(
+                                        if (selectedCategoryId == category.id) null else category.id,
+                                    )
+                                },
+                                label = { Text(category.name) },
+                            )
+                        }
+                    }
+                }
+            }
         }
-        return
-    }
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        items(tickets, key = { it.id }) { ticket ->
-            TicketCard(
-                ticket = ticket,
-                categoryName = categoryNames[ticket.categoryId] ?: ticket.categoryId,
-                onClick = { onOpen(ticket.id) },
-            )
+
+        if (tickets.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    stringResource(R.string.tickets_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(tickets, key = { it.id }) { ticket ->
+                    TicketCard(
+                        ticket = ticket,
+                        categoryName = categoryNames[ticket.categoryId] ?: ticket.categoryId,
+                        showOperatorDetails = allTickets,
+                        onClick = { onOpen(ticket.id) },
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TicketCard(ticket: Ticket, categoryName: String, onClick: () -> Unit) {
+private fun TicketCard(
+    ticket: Ticket,
+    categoryName: String,
+    showOperatorDetails: Boolean,
+    onClick: () -> Unit,
+) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -162,6 +271,16 @@ private fun TicketCard(ticket: Ticket, categoryName: String, onClick: () -> Unit
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                 )
+
+                // Show exact coordinates for operators
+                if (showOperatorDetails) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        stringResource(R.string.exact_coordinates, ticket.location.latitude, ticket.location.longitude),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
         }
     }

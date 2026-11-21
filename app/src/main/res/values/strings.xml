@@ -122,4 +122,35 @@
     <string name="message_operator_badge">Operator</string>
     <string name="message_citizen_badge">Citizen</string>
     <string name="messages_empty">No messages yet. Send a message to communicate about this incident.</string>
+
+    <!-- F3: Operator & Anonymous -->
+    <string name="filter_all_states">All states</string>
+    <string name="filter_all_categories">All categories</string>
+    <string name="author_contact">Author: %1$s · %2$s</string>
+    <string name="exact_coordinates">Coords: %1$.5f, %2$.5f</string>
+    <string name="dialog_state_change_title">Change incident state</string>
+    <string name="dialog_state_note_label">Note / remarks (optional)</string>
+    <string name="dialog_state_confirm">Confirm state change</string>
+    <string name="dialog_resolution_photo_required">At least one resolution photo is required before marking as Resolved.</string>
+    <string name="categories_empty">No categories created yet</string>
+    <string name="category_add">New category</string>
+    <string name="category_edit">Edit category</string>
+    <string name="category_name_label">Category name</string>
+    <string name="category_active">Active</string>
+    <string name="category_inactive">Inactive</string>
+    <string name="pending_location">Location: %1$.4f, %2$.4f</string>
+    <string name="gate_checking_location">Verifying your location in Coimbra…</string>
+    <string name="gate_blocked_title">Outside Municipal Area</string>
+    <string name="gate_blocked_desc">Public anonymous browsing is only available within 10 km of Coimbra city centre (Praça da República). Please sign in to access your account from anywhere.</string>
+    <string name="gate_retry_location">Check location again</string>
+    <string name="dashboard_total_tickets">Total Incidents</string>
+    <string name="dashboard_active_percent">Active Incidents</string>
+    <string name="dashboard_avg_repair_hours">Average Repair Time</string>
+    <string name="dashboard_hours_unit">hours</string>
+    <string name="dashboard_no_repairs_yet">None yet</string>
+    <string name="dashboard_view_public_list">View Incidents &amp; Map</string>
+    <string name="public_incidents_title">Public Incidents</string>
+    <string name="map_view">Map</string>
+    <string name="list_view">List</string>
+    <string name="approx_location">Approx. location: %1$.2f, %2$.2f</string>
 </resources>

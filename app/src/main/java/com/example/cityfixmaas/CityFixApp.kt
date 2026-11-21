@@ -10,6 +10,6 @@ class CityFixApp : Application() {
     val container: AppContainer by lazy { if (USE_FIREBASE) FirebaseAppContainer(this) else FakeAppContainer() }
 
     companion object {
-        const val USE_FIREBASE = true
+        const val USE_FIREBASE = false
     }
 }

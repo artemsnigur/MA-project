@@ -120,4 +120,35 @@
     <string name="message_operator_badge">Operador</string>
     <string name="message_citizen_badge">Cidadão</string>
     <string name="messages_empty">Ainda sem mensagens. Envie uma mensagem para comunicar sobre esta ocorrência.</string>
+
+    <!-- F3: Operator & Anonymous -->
+    <string name="filter_all_states">Todos os estados</string>
+    <string name="filter_all_categories">Todas as categorias</string>
+    <string name="author_contact">Autor: %1$s · %2$s</string>
+    <string name="exact_coordinates">Coords: %1$.5f, %2$.5f</string>
+    <string name="dialog_state_change_title">Alterar estado da ocorrência</string>
+    <string name="dialog_state_note_label">Nota / observações (opcional)</string>
+    <string name="dialog_state_confirm">Confirmar alteração</string>
+    <string name="dialog_resolution_photo_required">É necessária pelo menos uma foto de resolução antes de marcar como Resolvida.</string>
+    <string name="categories_empty">Nenhuma categoria criada</string>
+    <string name="category_add">Nova categoria</string>
+    <string name="category_edit">Editar categoria</string>
+    <string name="category_name_label">Nome da categoria</string>
+    <string name="category_active">Ativa</string>
+    <string name="category_inactive">Inativa</string>
+    <string name="pending_location">Localização: %1$.4f, %2$.4f</string>
+    <string name="gate_checking_location">A verificar a sua localização em Coimbra…</string>
+    <string name="gate_blocked_title">Fora da Área Municipal</string>
+    <string name="gate_blocked_desc">A navegação pública anónima só está disponível num raio de 10 km do centro de Coimbra (Praça da República). Inicie sessão para aceder à sua conta a partir de qualquer lugar.</string>
+    <string name="gate_retry_location">Verificar localização novamente</string>
+    <string name="dashboard_total_tickets">Total de Ocorrências</string>
+    <string name="dashboard_active_percent">Ocorrências Ativas</string>
+    <string name="dashboard_avg_repair_hours">Tempo Médio de Reparação</string>
+    <string name="dashboard_hours_unit">horas</string>
+    <string name="dashboard_no_repairs_yet">Ainda sem dados</string>
+    <string name="dashboard_view_public_list">Ver Ocorrências e Mapa</string>
+    <string name="public_incidents_title">Ocorrências Públicas</string>
+    <string name="map_view">Mapa</string>
+    <string name="list_view">Lista</string>
+    <string name="approx_location">Localização aprox.: %1$.2f, %2$.2f</string>
 </resources>

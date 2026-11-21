@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,8 +37,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -61,6 +66,7 @@ import com.example.cityfixmaas.data.repository.MessageRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.di.appContainer
 import com.example.cityfixmaas.ui.components.Base64Image
+import com.example.cityfixmaas.ui.publicview.SingleIncidentMapView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -128,9 +134,9 @@ class IncidentDetailViewModel(
         }
     }
 
-    fun changeState(to: LifecycleState) {
+    fun changeState(to: LifecycleState, note: String? = null) {
         viewModelScope.launch {
-            error.value = tickets.changeState(ticketId, to, null).exceptionOrNull()?.message
+            error.value = tickets.changeState(ticketId, to, note).exceptionOrNull()?.message
         }
     }
 
@@ -172,6 +178,8 @@ fun IncidentDetailScreen(
     val isSendingMessage by viewModel.isSendingMessage.collectAsStateWithLifecycle()
     val isRetryingUploads by viewModel.isRetryingUploads.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    var targetStateForDialog by remember { mutableStateOf<LifecycleState?>(null) }
+    var resolutionPhotoRequiredError by remember { mutableStateOf(false) }
 
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) {
         viewModel.addResolutionPhotos(it)
@@ -222,12 +230,26 @@ fun IncidentDetailScreen(
         // Description
         Text(t.description, style = MaterialTheme.typography.bodyLarge)
 
-        // Location coordinates
+        // Location coordinates and Map
         Text(
             stringResource(R.string.report_location_captured, t.location.latitude, t.location.longitude),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline,
         )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        ) {
+            SingleIncidentMapView(
+                latitude = t.location.latitude,
+                longitude = t.location.longitude,
+                title = categoryNames[t.categoryId] ?: t.categoryId,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         HorizontalDivider()
 
@@ -306,10 +328,24 @@ fun IncidentDetailScreen(
             Text(stringResource(R.string.detail_change_state), style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 t.lifecycleState.allowedNext().forEach { next ->
-                    Button(onClick = { viewModel.changeState(next) }) {
+                    Button(onClick = {
+                        if (next == LifecycleState.RESOLVED && t.media.none { it.phase == MediaPhase.RESOLUTION }) {
+                            resolutionPhotoRequiredError = true
+                        } else {
+                            resolutionPhotoRequiredError = false
+                            targetStateForDialog = next
+                        }
+                    }) {
                         Text(stringResource(next.labelRes()))
                     }
                 }
+            }
+            if (resolutionPhotoRequiredError) {
+                Text(
+                    stringResource(R.string.dialog_resolution_photo_required),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             if (t.lifecycleState == LifecycleState.IN_RESOLUTION) {
                 OutlinedButton(
@@ -318,6 +354,17 @@ fun IncidentDetailScreen(
                     Text(stringResource(R.string.detail_add_resolution_photos))
                 }
             }
+        }
+
+        targetStateForDialog?.let { nextState ->
+            StateChangeNoteDialog(
+                targetState = nextState,
+                onConfirm = { note ->
+                    viewModel.changeState(nextState, note)
+                    targetStateForDialog = null
+                },
+                onDismiss = { targetStateForDialog = null },
+            )
         }
 
         error?.let {
@@ -440,4 +487,41 @@ private fun MessageBubble(message: Message) {
             )
         }
     }
+}
+
+@Composable
+private fun StateChangeNoteDialog(
+    targetState: LifecycleState,
+    onConfirm: (note: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var note by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.dialog_state_change_title) + " → " + stringResource(targetState.labelRes()))
+        },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(stringResource(R.string.dialog_state_note_label)) },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(note.takeIf { it.isNotBlank() }) }) {
+                Text(stringResource(R.string.dialog_state_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }

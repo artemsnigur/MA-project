@@ -66,6 +66,9 @@ fun PendingCitizensScreen(viewModel: PendingCitizensViewModel = viewModel(factor
                         Text(user.name, style = MaterialTheme.typography.titleMedium)
                         Text(user.email, style = MaterialTheme.typography.bodyMedium)
                         Text(stringResource(R.string.pending_details, user.phone, user.nif), style = MaterialTheme.typography.bodySmall)
+                        user.location?.let { loc ->
+                            Text(stringResource(R.string.pending_location, loc.latitude, loc.longitude), style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     Button(onClick = { viewModel.activate(user.id) }) { Text(stringResource(R.string.pending_activate)) }
                 }

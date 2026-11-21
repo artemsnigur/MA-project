@@ -30,8 +30,11 @@ import com.example.cityfixmaas.ui.auth.AccountPendingScreen
 import com.example.cityfixmaas.ui.auth.LoginRoute
 import com.example.cityfixmaas.ui.auth.RegisterRoute
 import com.example.cityfixmaas.ui.components.MainTopAppBar
+import com.example.cityfixmaas.ui.operator.CategoriesScreen
 import com.example.cityfixmaas.ui.operator.PendingCitizensScreen
 import com.example.cityfixmaas.ui.profile.ProfileRoute
+import com.example.cityfixmaas.ui.publicview.DashboardScreen
+import com.example.cityfixmaas.ui.publicview.PublicIncidentsScreen
 import com.example.cityfixmaas.ui.tickets.IncidentDetailScreen
 import com.example.cityfixmaas.ui.tickets.ReportIncidentScreen
 import com.example.cityfixmaas.ui.tickets.TicketListScreen
@@ -79,8 +82,16 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 startDestination = startRouteFor(currentMode),
                 modifier = Modifier.padding(innerPadding),
             ) {
-                composable<DashboardRoute> { PlaceholderScreen(R.string.title_dashboard) }
-                composable<IncidentListRoute> { PlaceholderScreen(R.string.title_incidents) }
+                composable<DashboardRoute> {
+                    DashboardScreen(
+                        isAnonymous = currentMode == AppMode.ANONYMOUS,
+                        onNavigateToPublicIncidents = { navController.navigate(IncidentListRoute) },
+                        onNavigateToLogin = { navController.navigate(LoginRoute) },
+                    )
+                }
+                composable<IncidentListRoute> {
+                    PublicIncidentsScreen(onOpen = { navController.navigate(IncidentDetailRoute(it)) })
+                }
                 composable<IncidentDetailRoute> { entry ->
                     IncidentDetailScreen(
                         ticketId = entry.toRoute<IncidentDetailRoute>().incidentId,
@@ -105,16 +116,8 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                     TicketListScreen(allTickets = true, onOpen = { navController.navigate(IncidentDetailRoute(it)) })
                 }
                 composable<PendingCitizensRoute> { PendingCitizensScreen() }
-                composable<CategoriesRoute> { PlaceholderScreen(R.string.title_categories) }
+                composable<CategoriesRoute> { CategoriesScreen() }
             }
         }
-    }
-}
-
-/** TEMP: stands in for a screen until F1–F3 replace it. */
-@Composable
-private fun PlaceholderScreen(@StringRes titleRes: Int, detail: String? = null) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(stringResource(titleRes) + (detail?.let { " $it" } ?: ""))
     }
 }
