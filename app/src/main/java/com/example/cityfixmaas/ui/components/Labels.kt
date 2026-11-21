@@ -1,4 +1,4 @@
-package com.example.cityfixmaas.ui.tickets
+package com.example.cityfixmaas.ui.components
 
 import androidx.annotation.StringRes
 import com.example.cityfixmaas.R

@@ -34,6 +34,7 @@ import com.example.cityfixmaas.ui.navigation.IncidentListRoute
 import com.example.cityfixmaas.ui.navigation.LoginRoute
 import com.example.cityfixmaas.ui.navigation.MyIncidentsRoute
 import com.example.cityfixmaas.ui.navigation.PanelRoute
+import com.example.cityfixmaas.ui.navigation.PublicIncidentDetailRoute
 import com.example.cityfixmaas.ui.navigation.PendingCitizensRoute
 import com.example.cityfixmaas.ui.navigation.ProfileRoute
 import com.example.cityfixmaas.ui.navigation.RegisterRoute
@@ -102,6 +103,7 @@ private fun titleFor(destination: NavDestination?): Int = when {
     destination.hasRoute<DashboardRoute>() -> R.string.title_dashboard
     destination.hasRoute<IncidentListRoute>() -> R.string.title_incidents
     destination.hasRoute<IncidentDetailRoute>() -> R.string.title_incident_detail
+    destination.hasRoute<PublicIncidentDetailRoute>() -> R.string.title_incident_detail
     destination.hasRoute<LoginRoute>() -> R.string.title_login
     destination.hasRoute<RegisterRoute>() -> R.string.title_register
     destination.hasRoute<MyIncidentsRoute>() -> R.string.title_my_incidents

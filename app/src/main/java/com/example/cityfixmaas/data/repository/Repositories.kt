@@ -89,9 +89,6 @@ interface TicketRepository {
 
     /** Operator evidence of completed work. Required before moving to RESOLVED. */
     suspend fun addResolutionPhotos(ticketId: String, photoUris: List<Uri>): Result<Unit>
-
-    /** Re-queues photos in UploadState.FAILED. */
-    suspend fun retryUploads(ticketId: String)
 }
 
 /** Full-size photos. Used by ticket details for authors, operators and (public tickets) anonymous users. */

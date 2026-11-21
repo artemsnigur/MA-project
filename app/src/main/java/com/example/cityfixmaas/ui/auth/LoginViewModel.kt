@@ -38,25 +38,8 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun onEmailChange(value: String) {
-        _uiState.update {
-            it.copy(
-                email = value,
-                emailError = if (it.emailError != null) Validation.email(value) else null,
-                errorMessage = null,
-            )
-        }
-    }
-
-    fun onPasswordChange(value: String) {
-        _uiState.update {
-            it.copy(
-                password = value,
-                passwordError = if (it.passwordError != null) Validation.password(value, checkLength = false) else null,
-                errorMessage = null,
-            )
-        }
-    }
+    fun onEmailChange(value: String) = _uiState.update { it.copy(email = value, emailError = null, errorMessage = null) }
+    fun onPasswordChange(value: String) = _uiState.update { it.copy(password = value, passwordError = null, errorMessage = null) }
 
     fun onSignInClick() {
         val email = _uiState.value.email.trim()
@@ -72,19 +55,8 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val result = auth.signIn(email, password)
-            result.fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Sign-in failed",
-                        )
-                    }
-                },
-            )
+            // On success the session changes and AppShell shows the next screen by itself.
+            _uiState.update { it.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message) }
         }
     }
 
@@ -92,17 +64,8 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
         _uiState.update { it.copy(forgotPassword = ForgotPasswordState(email = it.email.trim())) }
     }
 
-    fun onForgotPasswordEmailChange(value: String) {
-        _uiState.update {
-            it.copy(
-                forgotPassword = it.forgotPassword?.copy(
-                    email = value,
-                    emailError = if (it.forgotPassword.emailError != null) Validation.email(value) else null,
-                    feedbackMessage = null,
-                ),
-            )
-        }
-    }
+    fun onForgotPasswordEmailChange(value: String) =
+        _uiState.update { it.copy(forgotPassword = it.forgotPassword?.copy(email = value, emailError = null, feedbackMessage = null)) }
 
     fun onForgotPasswordSend() {
         val dialog = _uiState.value.forgotPassword ?: return
@@ -113,43 +76,17 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
         }
 
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(forgotPassword = dialog.copy(isSending = true, feedbackMessage = null))
-            }
+            _uiState.update { it.copy(forgotPassword = dialog.copy(isSending = true, feedbackMessage = null)) }
             val result = auth.sendPasswordReset(dialog.email.trim())
-            result.fold(
-                onSuccess = {
-                    _uiState.update {
-                        it.copy(
-                            forgotPassword = it.forgotPassword?.copy(
-                                isSending = false,
-                                feedbackMessage = "Password reset email sent",
-                                isSuccess = true,
-                            ),
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            forgotPassword = it.forgotPassword?.copy(
-                                isSending = false,
-                                feedbackMessage = error.message ?: "Failed to send reset email",
-                                isSuccess = false,
-                            ),
-                        )
-                    }
-                },
-            )
+            val message = result.exceptionOrNull()?.message ?: "Password reset email sent"
+            _uiState.update {
+                it.copy(forgotPassword = it.forgotPassword?.copy(isSending = false, feedbackMessage = message, isSuccess = result.isSuccess))
+            }
         }
     }
 
     fun onForgotPasswordDismiss() {
         _uiState.update { it.copy(forgotPassword = null) }
-    }
-
-    fun clearErrorMessage() {
-        _uiState.update { it.copy(errorMessage = null) }
     }
 
     companion object {

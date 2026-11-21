@@ -60,7 +60,6 @@
     <string name="prompt_has_account">Already have an account? Sign in</string>
     <string name="forgot_password_title">Reset password</string>
     <string name="forgot_password_desc">Enter your email and we will send a password reset link.</string>
-    <string name="forgot_password_success">Password reset email sent</string>
 
     <!-- Account Pending -->
     <string name="pending_title">Account Pending Approval</string>
@@ -80,7 +79,6 @@
     <string name="report_type">Type</string>
     <string name="report_description">Description</string>
     <string name="report_public">Public (everyone can see it, without your name)</string>
-    <string name="report_add_photos">Add photos</string>
     <string name="report_photos_selected">Photos selected: %1$d</string>
     <string name="report_send">Send</string>
     <string name="detail_public">Public</string>
@@ -108,17 +106,11 @@
     <!-- F2: Incident Reporting & Details -->
     <string name="report_camera">Take photo</string>
     <string name="report_pick_photos">Gallery</string>
-    <string name="report_location">Incident location</string>
     <string name="report_location_captured">Location: %1$.4f, %2$.4f</string>
     <string name="report_location_detecting">Detecting location…</string>
     <string name="report_location_refresh">Refresh location</string>
-    <string name="report_error_category">Please select a category</string>
-    <string name="report_error_description">Please enter a description</string>
     <string name="report_error_photos">At least one photo is required</string>
     <string name="report_remove_photo">Remove photo</string>
-    <string name="permission_location_rationale">Location permission is needed to report the incident location.</string>
-    <string name="permission_camera_rationale">Camera permission is needed to take a photo of the incident.</string>
-    <string name="retry_upload">Retry upload</string>
     <string name="detail_messages">Messages</string>
     <string name="message_hint">Write a message…</string>
     <string name="message_send">Send message</string>
@@ -127,14 +119,11 @@
     <string name="messages_empty">No messages yet. Send a message to communicate about this incident.</string>
 
     <!-- F3: Operator & Anonymous -->
-    <string name="filter_all_states">All states</string>
-    <string name="filter_all_categories">All categories</string>
-    <string name="author_contact">Author: %1$s · %2$s</string>
+    <string name="author_contact">Author: %1$s · %2$s · %3$s</string>
     <string name="exact_coordinates">Coords: %1$.5f, %2$.5f</string>
     <string name="dialog_state_change_title">Change incident state</string>
     <string name="dialog_state_note_label">Note / remarks (optional)</string>
     <string name="dialog_state_confirm">Confirm state change</string>
-    <string name="dialog_resolution_photo_required">At least one resolution photo is required before marking as Resolved.</string>
     <string name="categories_empty">No categories created yet</string>
     <string name="category_add">New category</string>
     <string name="category_edit">Edit category</string>
@@ -151,9 +140,6 @@
     <string name="dashboard_avg_repair_hours">Average Repair Time</string>
     <string name="dashboard_hours_unit">hours</string>
     <string name="dashboard_no_repairs_yet">None yet</string>
-    <string name="dashboard_view_public_list">View Incidents &amp; Map</string>
-    <string name="public_incidents_title">Public Incidents</string>
-    <string name="map_view">Map</string>
-    <string name="list_view">List</string>
+    <string name="dashboard_view_public_list">View public incidents</string>
     <string name="approx_location">Approx. location: %1$.2f, %2$.2f</string>
 </resources>

@@ -131,10 +131,6 @@ class FirebaseTicketRepository(
         PhotoUploadWorker.enqueue(context, ticketId)
     }
 
-    override suspend fun retryUploads(ticketId: String) {
-        PhotoUploadWorker.enqueue(context, ticketId)
-    }
-
     /** Copies the photos into app storage and returns their PENDING entries for the ticket. */
     private suspend fun savePhotos(uris: List<Uri>, phase: MediaPhase, now: Long): List<MediaRef> =
         withContext(Dispatchers.IO) {

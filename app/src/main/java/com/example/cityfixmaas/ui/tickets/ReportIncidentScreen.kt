@@ -2,7 +2,6 @@ package com.example.cityfixmaas.ui.tickets
 
 import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -58,7 +57,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,6 +74,7 @@ import com.example.cityfixmaas.data.repository.CategoryRepository
 import com.example.cityfixmaas.data.repository.LocationProvider
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.di.appContainer
+import com.example.cityfixmaas.ui.components.labelRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -137,21 +136,9 @@ class ReportIncidentViewModel(
         }
     }
 
+    /** The repository checks the required fields (category, description, at least one photo). */
     fun send() {
         val s = _state.value
-        if (s.categoryId.isBlank()) {
-            _state.update { it.copy(error = "Please select a category") }
-            return
-        }
-        if (s.description.isBlank()) {
-            _state.update { it.copy(error = "Please enter a description") }
-            return
-        }
-        if (s.photos.isEmpty()) {
-            _state.update { it.copy(error = "At least one photo is required") }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, error = null) }
             val loc = s.location ?: locationProvider.currentLocation() ?: AppConfig.ANONYMOUS_AREA_CENTER
@@ -186,13 +173,6 @@ fun ReportIncidentScreen(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Auto-select first category once loaded if none selected
-    LaunchedEffect(categories) {
-        if (state.categoryId.isBlank() && categories.isNotEmpty()) {
-            viewModel.edit { it.copy(categoryId = categories.first().id) }
-        }
-    }
-
     // Photo picker launcher (Gallery)
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) { uris ->
         viewModel.addPhotos(uris)
@@ -208,16 +188,6 @@ fun ReportIncidentScreen(
         }
     }
 
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) {
-            val uri = createTempImageUri(context)
-            tempCameraUriString = uri.toString()
-            takePictureLauncher.launch(uri)
-        } else {
-            viewModel.edit { it.copy(error = context.getString(R.string.permission_camera_rationale)) }
-        }
-    }
-
     // Location permissions
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -229,19 +199,11 @@ fun ReportIncidentScreen(
         }
     }
 
+    // The system camera app takes the photo, so the app itself needs no CAMERA permission.
     fun launchCamera() {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA,
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasPermission) {
-            val uri = createTempImageUri(context)
-            tempCameraUriString = uri.toString()
-            takePictureLauncher.launch(uri)
-        } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
+        val uri = createTempImageUri(context)
+        tempCameraUriString = uri.toString()
+        takePictureLauncher.launch(uri)
     }
 
     LaunchedEffect(state.done) {

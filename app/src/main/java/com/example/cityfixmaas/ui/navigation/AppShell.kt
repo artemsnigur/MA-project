@@ -34,6 +34,8 @@ import com.example.cityfixmaas.ui.operator.CategoriesScreen
 import com.example.cityfixmaas.ui.operator.PendingCitizensScreen
 import com.example.cityfixmaas.ui.profile.ProfileRoute
 import com.example.cityfixmaas.ui.publicview.DashboardScreen
+import com.example.cityfixmaas.ui.publicview.PublicIncidentDetailScreen
+import com.example.cityfixmaas.ui.publicview.AnonymousGate
 import com.example.cityfixmaas.ui.publicview.PublicIncidentsScreen
 import com.example.cityfixmaas.ui.tickets.IncidentDetailScreen
 import com.example.cityfixmaas.ui.tickets.ReportIncidentScreen
@@ -42,7 +44,7 @@ import com.example.cityfixmaas.ui.tickets.TicketListScreen
 /**
  * Root of the UI: picks the graph from the session and hosts the shared Scaffold.
  * When the session changes (sign in, sign out, activation) the graph restarts at the new
- * mode's start screen. F1–F3 replace each PlaceholderScreen with the feature's XRoute.
+ * mode's start screen.
  */
 @Composable
 fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory)) {
@@ -54,6 +56,7 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
     }
 
     key(currentMode) {
+        val anonymous = currentMode == AppMode.ANONYMOUS
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val showFab = currentMode == AppMode.CITIZEN &&
@@ -83,14 +86,19 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 modifier = Modifier.padding(innerPadding),
             ) {
                 composable<DashboardRoute> {
-                    DashboardScreen(
-                        isAnonymous = currentMode == AppMode.ANONYMOUS,
-                        onNavigateToPublicIncidents = { navController.navigate(IncidentListRoute) },
-                        onNavigateToLogin = { navController.navigate(LoginRoute) },
-                    )
+                    GateIfAnonymous(anonymous, onSignIn = { navController.navigate(LoginRoute) }) {
+                        DashboardScreen(onNavigateToPublicIncidents = { navController.navigate(IncidentListRoute) })
+                    }
                 }
                 composable<IncidentListRoute> {
-                    PublicIncidentsScreen(onOpen = { navController.navigate(IncidentDetailRoute(it)) })
+                    GateIfAnonymous(anonymous, onSignIn = { navController.navigate(LoginRoute) }) {
+                        PublicIncidentsScreen(onOpen = { navController.navigate(PublicIncidentDetailRoute(it)) })
+                    }
+                }
+                composable<PublicIncidentDetailRoute> { entry ->
+                    GateIfAnonymous(anonymous, onSignIn = { navController.navigate(LoginRoute) }) {
+                        PublicIncidentDetailScreen(entry.toRoute<PublicIncidentDetailRoute>().incidentId)
+                    }
                 }
                 composable<IncidentDetailRoute> { entry ->
                     IncidentDetailScreen(
@@ -120,4 +128,10 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
             }
         }
     }
+}
+
+/** Anonymous users must be within 10 km of Praça da República; signed-in users skip the check. */
+@Composable
+private fun GateIfAnonymous(anonymous: Boolean, onSignIn: () -> Unit, content: @Composable () -> Unit) {
+    if (anonymous) AnonymousGate(onSignIn = onSignIn, content = content) else content()
 }
