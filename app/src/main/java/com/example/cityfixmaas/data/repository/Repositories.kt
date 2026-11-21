@@ -93,6 +93,9 @@ interface TicketRepository {
     /** Author or follower: RESOLVED -> OPEN within 5 days of the resolution, with a mandatory justification. */
     suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit>
 
+    /** Author or follower: OPEN -> INFORMATION_REQUEST, asking the municipality a question (kept in the history). */
+    suspend fun requestInformation(ticketId: String, question: String): Result<Unit>
+
     /**
      * Closes the given tickets that were resolved more than 5 days ago. There is no server code
      * (Spark plan), so the apps of the author and of the operators do it when they see such a ticket.

@@ -143,7 +143,7 @@
     <string name="dashboard_view_public_list">View public incidents</string>
     <string name="approx_location">Approx. location: %1$.2f, %2$.2f</string>
     <string name="notif_channel_name">Incident updates</string>
-    <string name="notif_state_changed">Your incident is now: %1$s</string>
+    <string name="notif_state_changed">Incident is now: %1$s</string>
     <string name="notif_new_message">New message about an incident</string>
     <string name="notif_close_reminder">Closes in 24 hours unless you reopen it</string>
     <string name="detail_reopen">Reopen</string>
@@ -157,4 +157,7 @@
     <string name="impact_dialog_text">A hard jolt was detected. Report a road defect here?</string>
     <string name="impact_dialog_report">Report</string>
     <string name="impact_dialog_ignore">Not now</string>
+    <string name="detail_request_info">Ask the municipality</string>
+    <string name="dialog_request_info_title">Request information</string>
+    <string name="dialog_request_info_label">Your question *</string>
 </resources>

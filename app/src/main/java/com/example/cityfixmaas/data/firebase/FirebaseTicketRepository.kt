@@ -140,6 +140,15 @@ class FirebaseTicketRepository(
         moveTo(ticket, LifecycleState.OPEN, uid, justification.trim())
     }
 
+    override suspend fun requestInformation(ticketId: String, question: String): Result<Unit> = runCatching {
+        require(question.isNotBlank()) { "Write your question" }
+        val uid = auth.currentUser?.uid ?: error("Not signed in")
+        val ticket = tickets.document(ticketId).get().await().toObject<Ticket>() ?: error("Ticket not found")
+        require(ticket.authorId == uid || uid in ticket.followerIds) { "Only the citizens who reported it can ask" }
+        require(ticket.lifecycleState == LifecycleState.OPEN) { "Information can be requested only while the ticket is open" }
+        moveTo(ticket, LifecycleState.INFORMATION_REQUEST, uid, question.trim())
+    }
+
     override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
         val uid = auth.currentUser?.uid ?: return
         tickets.filter { it.isReopenExpired(System.currentTimeMillis()) }

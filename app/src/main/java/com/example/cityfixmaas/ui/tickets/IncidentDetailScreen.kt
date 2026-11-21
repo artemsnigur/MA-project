@@ -123,6 +123,11 @@ class IncidentDetailViewModel(
         viewModelScope.launch { error.value = tickets.reopenTicket(ticketId, justification).exceptionOrNull()?.message }
     }
 
+    /** Author or follower, while the ticket is open: ask the municipality a question. */
+    fun requestInformation(question: String) {
+        viewModelScope.launch { error.value = tickets.requestInformation(ticketId, question).exceptionOrNull()?.message }
+    }
+
     fun addResolutionPhotos(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch { error.value = tickets.addResolutionPhotos(ticketId, uris).exceptionOrNull()?.message }
@@ -154,6 +159,7 @@ fun IncidentDetailScreen(
     var messageText by rememberSaveable { mutableStateOf("") }
     var stateForDialog by rememberSaveable { mutableStateOf<LifecycleState?>(null) } // enums survive rotation
     var showReopenDialog by rememberSaveable { mutableStateOf(false) }
+    var showQuestionDialog by rememberSaveable { mutableStateOf(false) }
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) {
         viewModel.addResolutionPhotos(it)
     }
@@ -225,6 +231,9 @@ fun IncidentDetailScreen(
                 }
             }
         }
+        if (!isOperator && t.lifecycleState == LifecycleState.OPEN) {
+            OutlinedButton(onClick = { showQuestionDialog = true }) { Text(stringResource(R.string.detail_request_info)) }
+        }
         if (!isOperator && t.canReopen(System.currentTimeMillis())) {
             HorizontalDivider()
             Text(stringResource(R.string.detail_reopen_until, formatTime(t.resolvedAt!! + AppConfig.REOPEN_WINDOW_MS)))
@@ -267,6 +276,15 @@ fun IncidentDetailScreen(
             noteRequired = false,
             onConfirm = { note -> viewModel.changeState(next, note); stateForDialog = null },
             onDismiss = { stateForDialog = null },
+        )
+    }
+    if (showQuestionDialog) {
+        StateChangeDialog(
+            title = stringResource(R.string.dialog_request_info_title),
+            noteLabel = stringResource(R.string.dialog_request_info_label),
+            noteRequired = true,
+            onConfirm = { question -> viewModel.requestInformation(question.orEmpty()); showQuestionDialog = false },
+            onDismiss = { showQuestionDialog = false },
         )
     }
     if (showReopenDialog) {
