@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,8 +81,9 @@ fun CategoriesScreen(
     viewModel: CategoriesViewModel = viewModel(factory = CategoriesViewModel.Factory),
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
-    var editingCategory by remember { mutableStateOf<Category?>(null) }
-    var isAddingNew by remember { mutableStateOf(false) }
+    var editingCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editingCategory = categories.find { it.id == editingCategoryId }
+    var isAddingNew by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
@@ -132,7 +136,7 @@ fun CategoriesScreen(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { editingCategory = category }) {
+                                IconButton(onClick = { editingCategoryId = category.id }) {
                                     Icon(
                                         Icons.Default.Edit,
                                         contentDescription = stringResource(R.string.category_edit),
@@ -170,9 +174,9 @@ fun CategoriesScreen(
             initialName = category.name,
             onConfirm = { newName ->
                 viewModel.saveCategory(id = category.id, name = newName)
-                editingCategory = null
+                editingCategoryId = null
             },
-            onDismiss = { editingCategory = null },
+            onDismiss = { editingCategoryId = null },
         )
     }
 }
@@ -184,19 +188,25 @@ private fun CategoryEditDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf(initialName) }
+    var name by rememberSaveable { mutableStateOf(initialName) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(R.string.category_name_label)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.category_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         },
         confirmButton = {
             TextButton(

@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,7 +86,7 @@ fun PublicIncidentsScreen(
 ) {
     val tickets by viewModel.tickets.collectAsStateWithLifecycle()
     val categoryNames by viewModel.categoryNames.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = List, 1 = Map
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0 = List, 1 = Map
 
     Column(Modifier.fillMaxSize()) {
         // Toggle view: List vs Map
@@ -172,6 +173,7 @@ private fun PublicTicketCard(
                 Base64Image(
                     ticket.thumbnailBase64,
                     Modifier.fillMaxSize(),
+                    contentDescription = stringResource(R.string.cd_incident_thumbnail),
                 )
             }
             Column(Modifier.weight(1f)) {

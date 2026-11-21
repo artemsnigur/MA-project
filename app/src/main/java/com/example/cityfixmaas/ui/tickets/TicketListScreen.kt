@@ -223,6 +223,7 @@ private fun TicketCard(
                 Base64Image(
                     ticket.media.firstOrNull()?.thumbnailBase64,
                     Modifier.fillMaxSize(),
+                    contentDescription = stringResource(R.string.cd_incident_thumbnail),
                 )
             }
             Column(Modifier.weight(1f)) {

@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.ui.publicview
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,8 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -32,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -104,6 +108,8 @@ fun DashboardScreen(
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val isCheckingLocation by viewModel.isCheckingLocation.collectAsStateWithLifecycle()
     val isWithinArea by viewModel.isWithinArea.collectAsStateWithLifecycle()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     if (isAnonymous && isCheckingLocation) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -132,7 +138,10 @@ fun DashboardScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
             ) {
                 Icon(
                     Icons.Default.LocationOff,
@@ -157,14 +166,18 @@ fun DashboardScreen(
                 Spacer(Modifier.height(24.dp))
                 Button(
                     onClick = viewModel::checkLocation,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(R.string.gate_retry_location))
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onNavigateToLogin,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(R.string.action_sign_in))
                 }
@@ -172,6 +185,10 @@ fun DashboardScreen(
         }
         return
     }
+
+    val avgHoursText = stats.averageRepairHours?.let {
+        String.format(Locale.US, "%.1f %s", it, stringResource(R.string.dashboard_hours_unit))
+    } ?: stringResource(R.string.dashboard_no_repairs_yet)
 
     // Dashboard Screen Content
     Column(
@@ -187,66 +204,51 @@ fun DashboardScreen(
             fontWeight = FontWeight.Bold,
         )
 
-        // Stat Card 1: Total Tickets
-        StatCard(
-            title = stringResource(R.string.dashboard_total_tickets),
-            value = stats.totalTickets.toString(),
-            icon = Icons.Default.ReportProblem,
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-
-        // Stat Card 2: Active Tickets %
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column {
-                        Text(
-                            stringResource(R.string.dashboard_active_percent),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        Text(
-                            String.format(Locale.US, "%.1f%%", stats.activePercent),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
-                    Icon(
-                        Icons.Default.PendingActions,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { (stats.activePercent / 100.0).toFloat().coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
+        if (isLandscape) {
+            // Adaptive horizontal row for wide / landscape orientation
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                StatCard(
+                    title = stringResource(R.string.dashboard_total_tickets),
+                    value = stats.totalTickets.toString(),
+                    icon = Icons.Default.ReportProblem,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                ActivePercentCard(
+                    activePercent = stats.activePercent,
+                    modifier = Modifier.weight(1f),
+                )
+                StatCard(
+                    title = stringResource(R.string.dashboard_avg_repair_hours),
+                    value = avgHoursText,
+                    icon = Icons.Default.HourglassEmpty,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.weight(1f),
                 )
             }
+        } else {
+            // Portrait vertical arrangement
+            StatCard(
+                title = stringResource(R.string.dashboard_total_tickets),
+                value = stats.totalTickets.toString(),
+                icon = Icons.Default.ReportProblem,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            ActivePercentCard(activePercent = stats.activePercent)
+            StatCard(
+                title = stringResource(R.string.dashboard_avg_repair_hours),
+                value = avgHoursText,
+                icon = Icons.Default.HourglassEmpty,
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
         }
-
-        // Stat Card 3: Average Repair Hours
-        val avgHoursText = stats.averageRepairHours?.let {
-            String.format(Locale.US, "%.1f %s", it, stringResource(R.string.dashboard_hours_unit))
-        } ?: stringResource(R.string.dashboard_no_repairs_yet)
-
-        StatCard(
-            title = stringResource(R.string.dashboard_avg_repair_hours),
-            value = avgHoursText,
-            icon = Icons.Default.HourglassEmpty,
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -255,11 +257,52 @@ fun DashboardScreen(
             onClick = onNavigateToPublicIncidents,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .heightIn(min = 48.dp),
         ) {
             Text(stringResource(R.string.dashboard_view_public_list))
             Spacer(Modifier.size(8.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun ActivePercentCard(activePercent: Double, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.dashboard_active_percent),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Text(
+                        String.format(Locale.US, "%.1f%%", activePercent),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+                Icon(
+                    Icons.Default.PendingActions,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { (activePercent / 100.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -271,10 +314,11 @@ private fun StatCard(
     icon: ImageVector,
     containerColor: androidx.compose.ui.graphics.Color,
     contentColor: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier

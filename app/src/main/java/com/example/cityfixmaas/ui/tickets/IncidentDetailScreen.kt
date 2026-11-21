@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -178,8 +181,9 @@ fun IncidentDetailScreen(
     val isSendingMessage by viewModel.isSendingMessage.collectAsStateWithLifecycle()
     val isRetryingUploads by viewModel.isRetryingUploads.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    var targetStateForDialog by remember { mutableStateOf<LifecycleState?>(null) }
-    var resolutionPhotoRequiredError by remember { mutableStateOf(false) }
+    var targetStateName by rememberSaveable { mutableStateOf<String?>(null) }
+    val targetStateForDialog = targetStateName?.let { runCatching { LifecycleState.valueOf(it) }.getOrNull() }
+    var resolutionPhotoRequiredError by rememberSaveable { mutableStateOf(false) }
 
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) {
         viewModel.addResolutionPhotos(it)
@@ -193,13 +197,18 @@ fun IncidentDetailScreen(
 
     val hasFailedUploads = t.media.any { it.uploadState == UploadState.FAILED }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
     ) {
+        Column(
+            Modifier
+                .widthIn(max = 720.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         // Header info
         Row(
             Modifier.fillMaxWidth(),
@@ -262,7 +271,11 @@ fun IncidentDetailScreen(
             t.media.forEach { ref ->
                 val full = photos.find { it.id == ref.id }?.imageBase64
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Base64Image(full ?: ref.thumbnailBase64, Modifier.size(130.dp))
+                    Base64Image(
+                        full ?: ref.thumbnailBase64,
+                        Modifier.size(130.dp),
+                        contentDescription = stringResource(R.string.cd_incident_thumbnail),
+                    )
                     val status = when {
                         ref.uploadState == UploadState.PENDING -> stringResource(R.string.photo_uploading)
                         ref.uploadState == UploadState.FAILED -> stringResource(R.string.photo_failed)
@@ -333,7 +346,7 @@ fun IncidentDetailScreen(
                             resolutionPhotoRequiredError = true
                         } else {
                             resolutionPhotoRequiredError = false
-                            targetStateForDialog = next
+                            targetStateName = next.name
                         }
                     }) {
                         Text(stringResource(next.labelRes()))
@@ -361,9 +374,9 @@ fun IncidentDetailScreen(
                 targetState = nextState,
                 onConfirm = { note ->
                     viewModel.changeState(nextState, note)
-                    targetStateForDialog = null
+                    targetStateName = null
                 },
-                onDismiss = { targetStateForDialog = null },
+                onDismiss = { targetStateName = null },
             )
         }
 
@@ -423,6 +436,7 @@ fun IncidentDetailScreen(
             IconButton(
                 onClick = viewModel::sendMessage,
                 enabled = messageInput.isNotBlank() && !isSendingMessage,
+                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
             ) {
                 if (isSendingMessage) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -435,6 +449,7 @@ fun IncidentDetailScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -495,7 +510,7 @@ private fun StateChangeNoteDialog(
     onConfirm: (note: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var note by remember { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -503,7 +518,11 @@ private fun StateChangeNoteDialog(
             Text(stringResource(R.string.dialog_state_change_title) + " → " + stringResource(targetState.labelRes()))
         },
         text = {
-            Column(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },

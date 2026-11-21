@@ -20,14 +20,18 @@ import com.example.cityfixmaas.data.media.base64ToBitmap
 
 /** Shows a Base64 JPEG from Firestore, or a grey box with an icon while there is none yet. */
 @Composable
-fun Base64Image(base64: String?, modifier: Modifier = Modifier) {
+fun Base64Image(
+    base64: String?,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
     val bitmap = remember(base64) { base64ToBitmap(base64) }
     val shaped = modifier.clip(RoundedCornerShape(8.dp))
     if (bitmap != null) {
-        Image(bitmap.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = shaped)
+        Image(bitmap.asImageBitmap(), contentDescription = contentDescription, contentScale = ContentScale.Crop, modifier = shaped)
     } else {
         Box(shaped.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Default.Image, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

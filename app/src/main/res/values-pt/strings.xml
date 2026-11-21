@@ -20,6 +20,9 @@
     <string name="cd_profile">Perfil</string>
     <string name="cd_pending">Registos pendentes</string>
     <string name="cd_categories">Categorias</string>
+    <string name="cd_show_password">Mostrar palavra-passe</string>
+    <string name="cd_hide_password">Ocultar palavra-passe</string>
+    <string name="cd_incident_thumbnail">Foto da ocorrência</string>
     <string name="fab_new_incident">Nova ocorrência</string>
 
     <!-- Validation -->
