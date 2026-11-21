@@ -73,7 +73,9 @@ fun TicketListScreen(
         return
     }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(tickets, key = { it.id }) { ticket ->
+        // No item keys on purpose: with keys the list keeps the old first item in view, and a
+        // ticket just created (it goes on top) would stay hidden above the screen.
+        items(tickets) { ticket ->
             TicketCard(
                 ticket = ticket,
                 categoryName = categoryNames[ticket.categoryId] ?: ticket.categoryId,
