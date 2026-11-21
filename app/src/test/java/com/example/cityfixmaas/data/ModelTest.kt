@@ -2,13 +2,31 @@ package com.example.cityfixmaas.data
 
 import com.example.cityfixmaas.data.model.LatLng
 import com.example.cityfixmaas.data.model.LifecycleState
+import com.example.cityfixmaas.data.model.Ticket
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Business rules that live in the data layer: lifecycle moves, the 10 km area, public rounding. */
+/** Business rules that live in the data layer: lifecycle moves, reopening, the 10 km area, public rounding. */
 class ModelTest {
+
+    @Test
+    fun reopen_onlyWithinFiveDaysOfResolution() {
+        val day = 24 * 3_600_000L
+        val now = 100 * day
+        val resolved = Ticket(lifecycleState = LifecycleState.RESOLVED, resolvedAt = now - 4 * day)
+        assertTrue(resolved.canReopen(now))
+        assertFalse(resolved.isReopenExpired(now))
+
+        val old = resolved.copy(resolvedAt = now - 6 * day)
+        assertFalse(old.canReopen(now))
+        assertTrue(old.isReopenExpired(now)) // closed automatically
+
+        val closed = old.copy(lifecycleState = LifecycleState.CLOSED)
+        assertFalse(closed.canReopen(now))
+        assertFalse(closed.isReopenExpired(now))
+    }
 
     @Test
     fun lifecycle_allowedMoves() {

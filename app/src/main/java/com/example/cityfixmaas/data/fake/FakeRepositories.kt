@@ -220,6 +220,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             val updated = ticket.copy(
                 lifecycleState = to,
                 updatedAt = at,
+                stateChangedBy = user.id,
                 resolvedAt = if (to == LifecycleState.RESOLVED) at else ticket.resolvedAt,
             )
             backend.tickets.update { it + (ticketId to updated) }
@@ -244,6 +245,24 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
         val mediaId = newId()
         return MediaRef(mediaId, SAMPLE_IMAGE_BASE64, phase, UploadState.DONE, at) to
             MediaContent(mediaId, ticketId, SAMPLE_IMAGE_BASE64, phase, at)
+    }
+
+    override suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit> = attempt {
+        require(justification.isNotBlank()) { "Explain why the problem is not solved" }
+        val user = backend.requireUser()
+        val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
+        require(ticket.authorId == user.id) { "Only the author can reopen the ticket" }
+        require(ticket.canReopen(now())) { "The 5 days to reopen have passed" }
+        backend.tickets.update { it + (ticketId to ticket.copy(lifecycleState = LifecycleState.OPEN, resolvedAt = null, updatedAt = now(), stateChangedBy = user.id)) }
+        appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.OPEN, user.id, now(), justification.trim()))
+    }
+
+    override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
+        val user = backend.currentUser() ?: return
+        tickets.filter { it.isReopenExpired(now()) }.forEach { ticket ->
+            backend.tickets.update { it + (ticket.id to ticket.copy(lifecycleState = LifecycleState.CLOSED, updatedAt = now(), stateChangedBy = user.id)) }
+            appendHistory(ticket.id, StateChange(newId(), ticket.lifecycleState, LifecycleState.CLOSED, user.id, now(), "Closed automatically after 5 days"))
+        }
     }
 
     private fun appendHistory(ticketId: String, change: StateChange) {
@@ -296,6 +315,10 @@ class FakeMessageRepository(private val backend: FakeBackend) : MessageRepositor
             require(text.isNotBlank()) { "Message is empty" }
             val message = Message(newId(), user.id, user.role, text.trim(), now())
             backend.messages.update { it + (ticketId to it[ticketId].orEmpty() + message) }
+            backend.tickets.update { all ->
+                val ticket = all[ticketId] ?: return@update all
+                all + (ticketId to ticket.copy(lastMessageAt = message.sentAt, lastMessageRole = user.role))
+            }
         }
     }
 }

@@ -140,4 +140,13 @@
     <string name="dashboard_no_repairs_yet">Ainda sem dados</string>
     <string name="dashboard_view_public_list">Ver ocorrências públicas</string>
     <string name="approx_location">Localização aprox.: %1$.2f, %2$.2f</string>
+    <string name="notif_channel_name">Atualizações de ocorrências</string>
+    <string name="notif_state_changed">A sua ocorrência está agora: %1$s</string>
+    <string name="notif_new_message">Nova mensagem sobre uma ocorrência</string>
+    <string name="notif_close_reminder">Fecha dentro de 24 horas, a menos que a reabra</string>
+    <string name="detail_reopen">Reabrir</string>
+    <string name="detail_reopen_until">Não ficou resolvido? Pode reabrir até %1$s.</string>
+    <string name="dialog_reopen_title">Reabrir ocorrência</string>
+    <string name="dialog_reopen_label">Porque é que o problema não está resolvido? *</string>
+    <string name="detail_closed_locked">Esta ocorrência está fechada e já não pode ser alterada.</string>
 </resources>

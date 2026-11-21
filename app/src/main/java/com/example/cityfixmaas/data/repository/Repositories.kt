@@ -87,6 +87,15 @@ interface TicketRepository {
      */
     suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit>
 
+    /** Author only: RESOLVED -> OPEN within 5 days of the resolution, with a mandatory justification. */
+    suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit>
+
+    /**
+     * Closes the given tickets that were resolved more than 5 days ago. There is no server code
+     * (Spark plan), so the apps of the author and of the operators do it when they see such a ticket.
+     */
+    suspend fun closeExpiredTickets(tickets: List<Ticket>)
+
     /** Operator evidence of completed work. Required before moving to RESOLVED. */
     suspend fun addResolutionPhotos(ticketId: String, photoUris: List<Uri>): Result<Unit>
 }
