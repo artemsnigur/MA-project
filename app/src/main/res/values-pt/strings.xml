@@ -141,7 +141,7 @@
     <string name="dashboard_view_public_list">Ver ocorrências públicas</string>
     <string name="approx_location">Localização aprox.: %1$.2f, %2$.2f</string>
     <string name="notif_channel_name">Atualizações de ocorrências</string>
-    <string name="notif_state_changed">A sua ocorrência está agora: %1$s</string>
+    <string name="notif_state_changed">A ocorrência está agora: %1$s</string>
     <string name="notif_new_message">Nova mensagem sobre uma ocorrência</string>
     <string name="notif_close_reminder">Fecha dentro de 24 horas, a menos que a reabra</string>
     <string name="detail_reopen">Reabrir</string>
@@ -155,4 +155,7 @@
     <string name="impact_dialog_text">Foi detetado um solavanco forte. Reportar um defeito na estrada aqui?</string>
     <string name="impact_dialog_report">Reportar</string>
     <string name="impact_dialog_ignore">Agora não</string>
+    <string name="detail_request_info">Perguntar ao município</string>
+    <string name="dialog_request_info_title">Pedir informação</string>
+    <string name="dialog_request_info_label">A sua pergunta *</string>
 </resources>

@@ -35,8 +35,8 @@ import kotlinx.coroutines.launch
  * Local notifications about tickets, and the automatic close after 5 days.
  *
  * It compares each ticket with what the user saw last time (kept in SharedPreferences) and notifies:
- * - citizens: state changes, new operator messages, and 24 h before a resolved ticket closes;
- * - operators: new citizen messages.
+ * - everyone: state changes made by somebody else, and new messages from the other side;
+ * - citizens also: 24 h before a resolved ticket closes.
  * It runs while the app is alive ([start]) and every 15 minutes in the background (TicketCheckWorker).
  */
 class TicketWatcher(private val context: Context, private val container: AppContainer) {
@@ -78,7 +78,7 @@ class TicketWatcher(private val context: Context, private val container: AppCont
 
             // A ticket seen for the first time is only remembered, never announced.
             if (seenState != null) {
-                if (role == UserRole.CITIZEN && seenState != ticket.lifecycleState.name && ticket.stateChangedBy != user.id) {
+                if (seenState != ticket.lifecycleState.name && ticket.stateChangedBy != user.id) {
                     notify(ticket, context.getString(R.string.notif_state_changed, context.getString(ticket.lifecycleState.labelRes())))
                 }
                 if (ticket.lastMessageAt > seenMessageAt && ticket.lastMessageRole != role) {

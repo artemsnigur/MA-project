@@ -270,6 +270,16 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
         appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.OPEN, user.id, now(), justification.trim()))
     }
 
+    override suspend fun requestInformation(ticketId: String, question: String): Result<Unit> = attempt {
+        require(question.isNotBlank()) { "Write your question" }
+        val user = backend.requireUser()
+        val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
+        require(ticket.authorId == user.id || user.id in ticket.followerIds) { "Only the citizens who reported it can ask" }
+        require(ticket.lifecycleState == LifecycleState.OPEN) { "Information can be requested only while the ticket is open" }
+        backend.tickets.update { it + (ticketId to ticket.copy(lifecycleState = LifecycleState.INFORMATION_REQUEST, updatedAt = now(), stateChangedBy = user.id)) }
+        appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.INFORMATION_REQUEST, user.id, now(), question.trim()))
+    }
+
     override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
         val user = backend.currentUser() ?: return
         tickets.filter { it.isReopenExpired(now()) }.forEach { ticket ->
