@@ -12,6 +12,12 @@ object AppConfig {
 
     const val ANONYMOUS_RADIUS_METERS = 10_000.0
 
+    /** Category preselected when Impact Detection suggests a road defect report. */
+    const val ROAD_CATEGORY_ID = "cat-roads"
+
+    /** A new report this close to an active one of the same category and type joins it instead. */
+    const val DUPLICATE_RADIUS_METERS = 10.0
+
     /** A resolved ticket can be reopened by its author for 5 days; after that it is closed. */
     const val REOPEN_WINDOW_MS = 5 * 24 * 3_600_000L
 

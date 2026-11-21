@@ -114,9 +114,9 @@ class FirebaseAuthRepository(
         auth.sendPasswordResetEmail(email.trim()).await()
     }
 
-    override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> = runCatching {
+    override suspend fun updateProfile(phone: String, photoUri: Uri?, impactDetectionEnabled: Boolean): Result<Unit> = runCatching {
         val uid = auth.currentUser!!.uid
-        val changes = mutableMapOf<String, Any>("phone" to phone.trim())
+        val changes = mutableMapOf<String, Any>("phone" to phone.trim(), "impactDetectionEnabled" to impactDetectionEnabled)
         if (photoUri != null) changes["photoBase64"] = toBase64(photoUri)
         users.document(uid).update(changes).await()
     }

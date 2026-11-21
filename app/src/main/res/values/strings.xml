@@ -151,4 +151,10 @@
     <string name="dialog_reopen_title">Reopen incident</string>
     <string name="dialog_reopen_label">Why is the problem not solved? *</string>
     <string name="detail_closed_locked">This incident is closed and can no longer be changed.</string>
+    <string name="report_joined_existing">This problem was already reported nearby. You now follow that incident.</string>
+    <string name="detail_followers">Also reported by other citizens: %1$d</string>
+    <string name="impact_dialog_title">Possible pothole</string>
+    <string name="impact_dialog_text">A hard jolt was detected. Report a road defect here?</string>
+    <string name="impact_dialog_report">Report</string>
+    <string name="impact_dialog_ignore">Not now</string>
 </resources>

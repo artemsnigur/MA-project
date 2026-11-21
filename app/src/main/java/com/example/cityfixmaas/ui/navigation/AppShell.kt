@@ -1,5 +1,14 @@
 package com.example.cityfixmaas.ui.navigation
 
+import com.example.cityfixmaas.sensors.ImpactDetector
+import androidx.lifecycle.flowWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -71,6 +80,29 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
     key(currentMode) {
         val anonymous = currentMode == AppMode.ANONYMOUS
         val navController = rememberNavController()
+
+        // Impact Detection: while the app is on screen, a hard jolt suggests a road defect report.
+        val impactDetection by sessionViewModel.impactDetection.collectAsStateWithLifecycle()
+        var showImpactDialog by rememberSaveable { mutableStateOf(false) }
+        val context = LocalContext.current
+        val lifecycle = LocalLifecycleOwner.current.lifecycle
+        LaunchedEffect(impactDetection) {
+            if (impactDetection) ImpactDetector.impacts(context).flowWithLifecycle(lifecycle).collect { showImpactDialog = true }
+        }
+        if (showImpactDialog) {
+            AlertDialog(
+                onDismissRequest = { showImpactDialog = false },
+                title = { Text(stringResource(R.string.impact_dialog_title)) },
+                text = { Text(stringResource(R.string.impact_dialog_text)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showImpactDialog = false
+                        navController.navigate(ReportIncidentRoute(roadDefect = true))
+                    }) { Text(stringResource(R.string.impact_dialog_report)) }
+                },
+                dismissButton = { TextButton(onClick = { showImpactDialog = false }) { Text(stringResource(R.string.impact_dialog_ignore)) } },
+            )
+        }
         val backStackEntry by navController.currentBackStackEntryAsState()
         val showFab = currentMode == AppMode.CITIZEN &&
             backStackEntry?.destination?.hasRoute<MyIncidentsRoute>() == true
@@ -87,7 +119,7 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
             },
             floatingActionButton = {
                 if (showFab) {
-                    FloatingActionButton(onClick = { navController.navigate(ReportIncidentRoute) }) {
+                    FloatingActionButton(onClick = { navController.navigate(ReportIncidentRoute()) }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.fab_new_incident))
                     }
                 }
@@ -128,7 +160,9 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
                 composable<MyIncidentsRoute> {
                     TicketListScreen(allTickets = false, onOpen = { navController.navigate(IncidentDetailRoute(it)) })
                 }
-                composable<ReportIncidentRoute> { ReportIncidentScreen(onDone = { navController.popBackStack() }) }
+                composable<ReportIncidentRoute> {
+                    ReportIncidentScreen(roadDefect = it.toRoute<ReportIncidentRoute>().roadDefect, onDone = { navController.popBackStack() })
+                }
                 composable<ProfileRoute> { ProfileRoute() }
                 composable<AccountPendingRoute> {
                     AccountPendingScreen(onSignOut = sessionViewModel::signOut)

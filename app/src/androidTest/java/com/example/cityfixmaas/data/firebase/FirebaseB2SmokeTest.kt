@@ -23,6 +23,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,15 +46,17 @@ class FirebaseB2SmokeTest {
 
     @Test
     fun createUploadAndResolve(): Unit = runBlocking {
-        auth.createUserWithEmailAndPassword("b2-test-${System.currentTimeMillis()}@example.com", "test-pass-1").await()
+        val email = "b2-test-${System.currentTimeMillis()}@example.com"
+        auth.createUserWithEmailAndPassword(email, "test-pass-1").await()
         val uid = auth.currentUser!!.uid
 
-        val id = tickets.createTicket(
-            TicketDraft(
-                categoryId = "cat-roads", incidentType = IncidentType.DAMAGE, description = "Test pothole",
-                publicScope = true, location = LatLng(40.21234, -8.41987), photoUris = listOf(testPhoto(Color.RED)),
-            ),
-        ).getOrThrow()
+        val draft = TicketDraft(
+            categoryId = "cat-roads", incidentType = IncidentType.DAMAGE, description = "Test pothole",
+            publicScope = true, location = LatLng(40.21234, -8.41987), photoUris = listOf(testPhoto(Color.RED)),
+        )
+        val created = tickets.createTicket(draft).getOrThrow()
+        assertFalse(created.joinedExisting)
+        val id = created.id
 
         // The ticket is saved at once with a PENDING photo; the worker then uploads it.
         val uploaded = waitFor(tickets.observeTicket(id)) { t -> t?.media?.all { it.uploadState == UploadState.DONE } == true }!!
@@ -64,6 +68,18 @@ class FirebaseB2SmokeTest {
         // The public copy has the thumbnail and a rounded location.
         val public = waitFor(publicTicket(id)) { it?.thumbnailBase64 != null }!!
         assertEquals(LatLng(40.21, -8.42), public.approxLocation)
+
+        // A second citizen reporting the same problem 5 m away joins this ticket as a follower.
+        auth.signOut()
+        auth.createUserWithEmailAndPassword("b2-follower-${System.currentTimeMillis()}@example.com", "test-pass-1").await()
+        val followerUid = auth.currentUser!!.uid
+        val joined = tickets.createTicket(draft.copy(location = LatLng(40.21238, -8.41987))).getOrThrow()
+        assertTrue(joined.joinedExisting)
+        assertEquals(id, joined.id)
+        assertTrue(waitFor(tickets.observeMyTickets()) { list -> list.any { it.id == id } }.isNotEmpty())
+        auth.currentUser!!.delete().await()
+        auth.signInWithEmailAndPassword(email, "test-pass-1").await()
+        assertEquals(listOf(followerUid), waitFor(tickets.observeTicket(id)) { it?.followerIds?.isNotEmpty() == true }!!.followerIds)
 
         // Operator flow: in resolution → add resolution photo → resolved.
         tickets.changeState(id, LifecycleState.IN_RESOLUTION, "Team sent").getOrThrow()

@@ -14,7 +14,8 @@ import kotlinx.serialization.Serializable
 
 // Citizen
 @Serializable data object MyIncidentsRoute
-@Serializable data object ReportIncidentRoute
+/** [roadDefect]: opened from Impact Detection, so the form starts as a road damage report. */
+@Serializable data class ReportIncidentRoute(val roadDefect: Boolean = false)
 @Serializable data object ProfileRoute
 @Serializable data object AccountPendingRoute
 

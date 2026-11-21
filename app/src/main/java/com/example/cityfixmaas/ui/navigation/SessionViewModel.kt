@@ -26,6 +26,14 @@ class SessionViewModel(private val auth: AuthRepository) : ViewModel() {
         .map { toMode(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, toMode(auth.session.value))
 
+    /** Active citizens who turned Impact Detection on (at registration or in the profile). */
+    val impactDetection: StateFlow<Boolean> = auth.session
+        .map { session ->
+            val user = (session as? SessionState.SignedIn)?.user
+            user != null && user.role == UserRole.CITIZEN && user.status == AccountStatus.ACTIVE && user.impactDetectionEnabled
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     fun signOut() {
         viewModelScope.launch { auth.signOut() }
     }

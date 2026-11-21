@@ -1,5 +1,9 @@
 package com.example.cityfixmaas.data.firebase
 
+import kotlinx.coroutines.flow.combine
+import com.example.cityfixmaas.data.model.CreatedTicket
+import com.example.cityfixmaas.data.distanceTo
+import com.example.cityfixmaas.data.AppConfig
 import android.content.Context
 import android.net.Uri
 import com.example.cityfixmaas.data.model.LifecycleState
@@ -39,9 +43,9 @@ class FirebaseTicketRepository(
 
     override fun observeMyTickets(): Flow<List<Ticket>> {
         val uid = auth.currentUser?.uid ?: return flowOf(emptyList())
-        return tickets.whereEqualTo("authorId", uid)
-            .snapshots()
-            .map { result -> result.toObjects<Ticket>().sortedByDescending { it.createdAt } }
+        val authored = tickets.whereEqualTo("authorId", uid).snapshots().map { it.toObjects<Ticket>() }
+        val followed = tickets.whereArrayContains("followerIds", uid).snapshots().map { it.toObjects<Ticket>() }
+        return combine(authored, followed) { a, f -> (a + f).sortedByDescending { it.createdAt } }
             .catch { emit(emptyList()) }
     }
 
@@ -65,11 +69,18 @@ class FirebaseTicketRepository(
      * Works offline: photos are copied into app storage, the ticket is written to the local
      * Firestore cache (synced when online) and the photo upload waits for a connection.
      */
-    override suspend fun createTicket(draft: TicketDraft): Result<String> = runCatching {
+    override suspend fun createTicket(draft: TicketDraft): Result<CreatedTicket> = runCatching {
         val uid = auth.currentUser?.uid ?: error("Not signed in")
         require(draft.categoryId.isNotBlank()) { "Choose a category" }
         require(draft.description.isNotBlank()) { "Description is required" }
         require(draft.photoUris.isNotEmpty()) { "Add at least one photo" }
+
+        // Same problem already reported nearby: follow that ticket instead of opening a duplicate.
+        val duplicate = findDuplicate(draft)
+        if (duplicate != null) {
+            if (duplicate.authorId != uid) tickets.document(duplicate.id).update("followerIds", FieldValue.arrayUnion(uid))
+            return@runCatching CreatedTicket(duplicate.id, joinedExisting = true)
+        }
 
         val now = System.currentTimeMillis()
         val ticketRef = tickets.document() // new random id
@@ -97,8 +108,16 @@ class FirebaseTicketRepository(
         batch.commit() // not awaited: offline it would wait until the connection is back
 
         PhotoUploadWorker.enqueue(context, ticket.id)
-        ticket.id
+        CreatedTicket(ticket.id, joinedExisting = false)
     }
+
+    /** An active ticket with the same category and incident type within 10 m (Firestore has no geo queries, so distance is checked here). */
+    private suspend fun findDuplicate(draft: TicketDraft): Ticket? = tickets
+        .whereEqualTo("categoryId", draft.categoryId)
+        .whereEqualTo("incidentType", draft.incidentType.name)
+        .get().await() // offline: answered from the local cache
+        .toObjects<Ticket>()
+        .firstOrNull { it.lifecycleState.isActive && it.location.distanceTo(draft.location) <= AppConfig.DUPLICATE_RADIUS_METERS }
 
     override suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit> = runCatching {
         val uid = auth.currentUser?.uid ?: error("Not signed in")
@@ -116,7 +135,7 @@ class FirebaseTicketRepository(
         require(justification.isNotBlank()) { "Explain why the problem is not solved" }
         val uid = auth.currentUser?.uid ?: error("Not signed in")
         val ticket = tickets.document(ticketId).get().await().toObject<Ticket>() ?: error("Ticket not found")
-        require(ticket.authorId == uid) { "Only the author can reopen the ticket" }
+        require(ticket.authorId == uid || uid in ticket.followerIds) { "Only the citizens who reported it can reopen the ticket" }
         require(ticket.canReopen(System.currentTimeMillis())) { "The 5 days to reopen have passed" }
         moveTo(ticket, LifecycleState.OPEN, uid, justification.trim())
     }

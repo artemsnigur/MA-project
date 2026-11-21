@@ -75,6 +75,8 @@ data class Ticket(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val resolvedAt: Long? = null,
+    /** Other citizens who reported the same problem (see AppConfig.DUPLICATE_RADIUS_METERS); they follow the ticket too. */
+    val followerIds: List<String> = emptyList(),
     /** uid of whoever made the last state change; nobody is notified about their own change. */
     val stateChangedBy: String = "",
     /** Time and sender role of the newest message; used for local notifications. */
@@ -131,6 +133,9 @@ data class DashboardStats(
     /** Average of resolvedAt - createdAt over resolved tickets; null when none is resolved yet. */
     val averageRepairHours: Double? = null,
 )
+
+/** Result of reporting: the new ticket, or the existing one the report joined. */
+data class CreatedTicket(val id: String, val joinedExisting: Boolean)
 
 // ---- Inputs from the UI (not stored as-is) ----
 

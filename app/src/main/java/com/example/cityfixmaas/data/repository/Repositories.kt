@@ -4,6 +4,7 @@ import android.net.Uri
 import com.example.cityfixmaas.data.model.Category
 import com.example.cityfixmaas.data.model.DashboardStats
 import com.example.cityfixmaas.data.model.LatLng
+import com.example.cityfixmaas.data.model.CreatedTicket
 import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.MediaContent
 import com.example.cityfixmaas.data.model.Message
@@ -38,7 +39,7 @@ interface AuthRepository {
     suspend fun sendPasswordReset(email: String): Result<Unit>
 
     /** Name, NIF and location cannot be changed. Pass photoUri = null to keep the current photo. */
-    suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit>
+    suspend fun updateProfile(phone: String, photoUri: Uri?, impactDetectionEnabled: Boolean): Result<Unit>
 
     suspend fun signOut()
 }
@@ -64,7 +65,7 @@ interface CategoryRepository {
 }
 
 interface TicketRepository {
-    /** Tickets the signed-in citizen authored, newest first. */
+    /** Tickets the signed-in citizen authored or follows, newest first. */
     fun observeMyTickets(): Flow<List<Ticket>>
 
     /** Every ticket, newest first. Operator only. */
@@ -77,9 +78,11 @@ interface TicketRepository {
 
     /**
      * Saves the ticket immediately (works offline) and queues photo processing.
-     * Returns the new ticket id. Photos show UploadState.PENDING until they are written.
+     * Photos show UploadState.PENDING until they are written.
+     * If an active ticket with the same category and type is within 10 m, the citizen joins it
+     * as a follower instead and no new ticket is created.
      */
-    suspend fun createTicket(draft: TicketDraft): Result<String>
+    suspend fun createTicket(draft: TicketDraft): Result<CreatedTicket>
 
     /**
      * Operator only. Fails if [to] is not in the current state's allowedNext(),
@@ -87,7 +90,7 @@ interface TicketRepository {
      */
     suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit>
 
-    /** Author only: RESOLVED -> OPEN within 5 days of the resolution, with a mandatory justification. */
+    /** Author or follower: RESOLVED -> OPEN within 5 days of the resolution, with a mandatory justification. */
     suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit>
 
     /**
