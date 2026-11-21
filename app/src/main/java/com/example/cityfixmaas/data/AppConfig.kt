@@ -12,6 +12,9 @@ object AppConfig {
 
     const val ANONYMOUS_RADIUS_METERS = 10_000.0
 
+    /** A resolved ticket can be reopened by its author for 5 days; after that it is closed. */
+    const val REOPEN_WINDOW_MS = 5 * 24 * 3_600_000L
+
     /** Operators must register with an email in this domain. TODO: confirm the domain. */
     const val MUNICIPAL_EMAIL_DOMAIN = "cm-coimbra.pt"
 }

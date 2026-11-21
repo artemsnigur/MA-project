@@ -109,17 +109,38 @@ class FirebaseTicketRepository(
             require(ticket.media.any { it.phase == MediaPhase.RESOLUTION }) { "Add photos of the completed work first" }
         }
 
-        val now = System.currentTimeMillis()
-        val changes = mutableMapOf<String, Any>("lifecycleState" to to.name, "updatedAt" to now)
-        if (to == LifecycleState.RESOLVED) changes["resolvedAt"] = now
-        val change = StateChange(UUID.randomUUID().toString(), ticket.lifecycleState, to, uid, now, note?.trim())
+        moveTo(ticket, to, uid, note?.trim()?.ifBlank { null })
+    }
 
+    override suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit> = runCatching {
+        require(justification.isNotBlank()) { "Explain why the problem is not solved" }
+        val uid = auth.currentUser?.uid ?: error("Not signed in")
+        val ticket = tickets.document(ticketId).get().await().toObject<Ticket>() ?: error("Ticket not found")
+        require(ticket.authorId == uid) { "Only the author can reopen the ticket" }
+        require(ticket.canReopen(System.currentTimeMillis())) { "The 5 days to reopen have passed" }
+        moveTo(ticket, LifecycleState.OPEN, uid, justification.trim())
+    }
+
+    override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
+        val uid = auth.currentUser?.uid ?: return
+        tickets.filter { it.isReopenExpired(System.currentTimeMillis()) }
+            .forEach { moveTo(it, LifecycleState.CLOSED, uid, "Closed automatically after 5 days") }
+    }
+
+    /** Writes the new state, its history entry and the public copy in one batch. */
+    private fun moveTo(ticket: Ticket, to: LifecycleState, uid: String, note: String?) {
+        val now = System.currentTimeMillis()
+        val changes = mutableMapOf<String, Any?>("lifecycleState" to to.name, "updatedAt" to now, "stateChangedBy" to uid)
+        if (to == LifecycleState.RESOLVED) changes["resolvedAt"] = now
+        if (to == LifecycleState.OPEN) changes["resolvedAt"] = null // reopened: not resolved any more
+        val change = StateChange(UUID.randomUUID().toString(), ticket.lifecycleState, to, uid, now, note)
+
+        val ticketRef = tickets.document(ticket.id)
         val batch = db.batch()
         batch.update(ticketRef, changes)
         batch.set(ticketRef.collection("history").document(change.id), change)
-        if (ticket.publicScope) batch.update(publicTickets.document(ticketId), changes - "updatedAt")
-        batch.commit()
-        Unit
+        if (ticket.publicScope) batch.update(publicTickets.document(ticket.id), changes - "updatedAt" - "stateChangedBy")
+        batch.commit() // not awaited: works offline
     }
 
     override suspend fun addResolutionPhotos(ticketId: String, photoUris: List<Uri>): Result<Unit> = runCatching {

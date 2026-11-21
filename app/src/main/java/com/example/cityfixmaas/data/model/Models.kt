@@ -1,5 +1,7 @@
 package com.example.cityfixmaas.data.model
 
+import com.example.cityfixmaas.data.AppConfig
+
 import android.net.Uri
 
 // Firestore maps documents to these classes with toObject(), which needs a no-arg constructor:
@@ -73,7 +75,20 @@ data class Ticket(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val resolvedAt: Long? = null,
-)
+    /** uid of whoever made the last state change; nobody is notified about their own change. */
+    val stateChangedBy: String = "",
+    /** Time and sender role of the newest message; used for local notifications. */
+    val lastMessageAt: Long = 0,
+    val lastMessageRole: UserRole? = null,
+) {
+    /** The author may reopen a resolved ticket during the first 5 days. */
+    fun canReopen(now: Long): Boolean =
+        lifecycleState == LifecycleState.RESOLVED && resolvedAt != null && now - resolvedAt <= AppConfig.REOPEN_WINDOW_MS
+
+    /** Resolved for more than 5 days without a contest: it must be closed. */
+    fun isReopenExpired(now: Long): Boolean =
+        lifecycleState == LifecycleState.RESOLVED && resolvedAt != null && now - resolvedAt > AppConfig.REOPEN_WINDOW_MS
+}
 
 /**
  * Stored in `publicTickets/{id}` for public tickets only. Safe for anonymous users:

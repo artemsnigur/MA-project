@@ -142,4 +142,13 @@
     <string name="dashboard_no_repairs_yet">None yet</string>
     <string name="dashboard_view_public_list">View public incidents</string>
     <string name="approx_location">Approx. location: %1$.2f, %2$.2f</string>
+    <string name="notif_channel_name">Incident updates</string>
+    <string name="notif_state_changed">Your incident is now: %1$s</string>
+    <string name="notif_new_message">New message about an incident</string>
+    <string name="notif_close_reminder">Closes in 24 hours unless you reopen it</string>
+    <string name="detail_reopen">Reopen</string>
+    <string name="detail_reopen_until">Not solved? You can reopen it until %1$s.</string>
+    <string name="dialog_reopen_title">Reopen incident</string>
+    <string name="dialog_reopen_label">Why is the problem not solved? *</string>
+    <string name="detail_closed_locked">This incident is closed and can no longer be changed.</string>
 </resources>

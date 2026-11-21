@@ -29,7 +29,12 @@ class FirebaseMessageRepository(private val auth: FirebaseAuth, private val db: 
         // The role decides how the message is shown (operator messages are highlighted).
         val sender = db.collection("users").document(uid).get().await().toObject<User>() ?: error("Profile not found")
         val ref = messages(ticketId).document() // new random id
-        ref.set(Message(ref.id, uid, sender.role, text.trim(), System.currentTimeMillis())) // not awaited: works offline
+        val now = System.currentTimeMillis()
+        val batch = db.batch() // not awaited: works offline
+        batch.set(ref, Message(ref.id, uid, sender.role, text.trim(), now))
+        // Lets the other side notice the new message from the ticket alone (see TicketWatcher).
+        batch.update(db.collection("tickets").document(ticketId), mapOf("lastMessageAt" to now, "lastMessageRole" to sender.role.name))
+        batch.commit()
         Unit
     }
 }

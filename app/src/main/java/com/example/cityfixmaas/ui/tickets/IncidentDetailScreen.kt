@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cityfixmaas.R
+import com.example.cityfixmaas.data.AppConfig
 import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.MediaPhase
 import com.example.cityfixmaas.data.model.Message
@@ -117,6 +118,11 @@ class IncidentDetailViewModel(
         viewModelScope.launch { error.value = tickets.changeState(ticketId, to, note).exceptionOrNull()?.message }
     }
 
+    /** Author only, within 5 days of the resolution; the justification is mandatory. */
+    fun reopen(justification: String) {
+        viewModelScope.launch { error.value = tickets.reopenTicket(ticketId, justification).exceptionOrNull()?.message }
+    }
+
     fun addResolutionPhotos(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch { error.value = tickets.addResolutionPhotos(ticketId, uris).exceptionOrNull()?.message }
@@ -147,6 +153,7 @@ fun IncidentDetailScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     var messageText by rememberSaveable { mutableStateOf("") }
     var stateForDialog by rememberSaveable { mutableStateOf<LifecycleState?>(null) } // enums survive rotation
+    var showReopenDialog by rememberSaveable { mutableStateOf(false) }
     val pickPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) {
         viewModel.addResolutionPhotos(it)
     }
@@ -214,6 +221,11 @@ fun IncidentDetailScreen(
                 }
             }
         }
+        if (!isOperator && t.canReopen(System.currentTimeMillis())) {
+            HorizontalDivider()
+            Text(stringResource(R.string.detail_reopen_until, formatTime(t.resolvedAt!! + AppConfig.REOPEN_WINDOW_MS)))
+            OutlinedButton(onClick = { showReopenDialog = true }) { Text(stringResource(R.string.detail_reopen)) }
+        }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         HorizontalDivider()
@@ -228,7 +240,10 @@ fun IncidentDetailScreen(
         Text(stringResource(R.string.detail_messages), style = MaterialTheme.typography.titleMedium)
         if (messages.isEmpty()) Text(stringResource(R.string.messages_empty), style = MaterialTheme.typography.bodySmall)
         messages.forEach { MessageCard(it) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // A closed ticket is archived and locked, so no new messages.
+        if (t.lifecycleState == LifecycleState.CLOSED) {
+            Text(stringResource(R.string.detail_closed_locked), style = MaterialTheme.typography.bodySmall)
+        } else Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },
@@ -243,9 +258,20 @@ fun IncidentDetailScreen(
 
     stateForDialog?.let { next ->
         StateChangeDialog(
-            target = next,
+            title = stringResource(R.string.dialog_state_change_title) + " → " + stringResource(next.labelRes()),
+            noteLabel = stringResource(R.string.dialog_state_note_label),
+            noteRequired = false,
             onConfirm = { note -> viewModel.changeState(next, note); stateForDialog = null },
             onDismiss = { stateForDialog = null },
+        )
+    }
+    if (showReopenDialog) {
+        StateChangeDialog(
+            title = stringResource(R.string.dialog_reopen_title),
+            noteLabel = stringResource(R.string.dialog_reopen_label),
+            noteRequired = true,
+            onConfirm = { note -> viewModel.reopen(note.orEmpty()); showReopenDialog = false },
+            onDismiss = { showReopenDialog = false },
         )
     }
 }
@@ -271,22 +297,28 @@ private fun MessageCard(message: Message) {
     }
 }
 
-/** Asks for an optional note, saved with the state change in the history. */
+/** Asks for a note (optional for operators, required to reopen), saved with the state change in the history. */
 @Composable
-private fun StateChangeDialog(target: LifecycleState, onConfirm: (note: String?) -> Unit, onDismiss: () -> Unit) {
+private fun StateChangeDialog(
+    title: String,
+    noteLabel: String,
+    noteRequired: Boolean,
+    onConfirm: (note: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var note by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_state_change_title) + " → " + stringResource(target.labelRes())) },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text(stringResource(R.string.dialog_state_note_label)) },
+                label = { Text(noteLabel) },
                 minLines = 2,
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(note.ifBlank { null }) }) { Text(stringResource(R.string.dialog_state_confirm)) } },
+        confirmButton = { TextButton(onClick = { onConfirm(note.ifBlank { null }) }, enabled = !noteRequired || note.isNotBlank()) { Text(stringResource(R.string.dialog_state_confirm)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
