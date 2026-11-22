@@ -159,4 +159,7 @@
     <string name="dialog_request_info_title">Pedir informação</string>
     <string name="dialog_request_info_label">A sua pergunta *</string>
     <string name="notif_operator_nearby">Uma equipa municipal está no local da sua ocorrência</string>
+    <string name="register_confirm_email_title">Confirme o seu email</string>
+    <string name="register_confirm_email_text">Enviámos um link de confirmação para %1$s. Abra-o e depois inicie sessão.</string>
+    <string name="register_confirm_email_ok">Ir para iniciar sessão</string>
 </resources>

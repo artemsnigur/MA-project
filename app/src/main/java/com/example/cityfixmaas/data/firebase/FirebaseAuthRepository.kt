@@ -1,5 +1,7 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.example.cityfixmaas.data.AppConfig
+import com.google.firebase.auth.FirebaseUser
 import android.content.Context
 import android.net.Uri
 import com.example.cityfixmaas.data.media.ImageSize
@@ -55,16 +57,31 @@ class FirebaseAuthRepository(
         }
         .stateIn(scope, SharingStarted.Eagerly, SessionState.Loading)
 
-    /** Emits the uid of the signed-in user (or null) every time it changes. */
+    /**
+     * Emits the uid of the signed-in user (or null) every time it changes. An account whose email
+     * is not confirmed yet counts as signed out, so the app never shows its screens.
+     */
     private fun signedInUid() = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.uid) }
+        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.takeIf { user -> user.emailConfirmed() }?.uid) }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
+    /**
+     * Two steps: the password, then the email. Until the citizen or operator opens the link we sent
+     * to their inbox, signing in sends a new link and fails.
+     */
     override suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
-        auth.signInWithEmailAndPassword(email.trim(), password).await()
+        val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user!!
+        if (!user.emailConfirmed()) {
+            // Firebase limits how often it sends these emails; the earlier link still works then.
+            runCatching { user.sendEmailVerification().await() }
+            auth.signOut()
+            throw IllegalStateException("Confirm your email first: open the link we sent to ${user.email}")
+        }
     }
+
+    private fun FirebaseUser.emailConfirmed() = isEmailVerified || email in AppConfig.EMAIL_CONFIRMATION_EXEMPT
 
     override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> = runCatching {
         register(form, UserRole.CITIZEN, AccountStatus.PENDING)
@@ -78,7 +95,8 @@ class FirebaseAuthRepository(
      * The form is already checked by RegisterViewModel (ui/auth/Validation).
      * 1. Create the Firebase Auth account (this also signs in).
      * 2. Make sure no other user with this role has the same NIF; if one does, delete the new
-     *    account again. 3. Save the profile in users/{uid}.
+     *    account again. 3. Save the profile in users/{uid}. 4. Send the confirmation email and
+     *    sign out: the first sign-in works after the link is opened.
      */
     private suspend fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
         val email = form.email.trim().lowercase()
@@ -108,6 +126,10 @@ class FirebaseAuthRepository(
             createdAt = System.currentTimeMillis(),
         )
         users.document(user.id).set(user).await()
+        if (!account.emailConfirmed()) {
+            runCatching { account.sendEmailVerification().await() } // if Firebase refuses now, signing in sends it again
+            auth.signOut()
+        }
     }
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {

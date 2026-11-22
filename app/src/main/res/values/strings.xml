@@ -161,4 +161,7 @@
     <string name="dialog_request_info_title">Request information</string>
     <string name="dialog_request_info_label">Your question *</string>
     <string name="notif_operator_nearby">A municipal team is at your incident</string>
+    <string name="register_confirm_email_title">Confirm your email</string>
+    <string name="register_confirm_email_text">We sent a confirmation link to %1$s. Open it, then sign in.</string>
+    <string name="register_confirm_email_ok">Go to sign in</string>
 </resources>

@@ -39,6 +39,8 @@ data class RegisterUiState(
     val locationError: FieldError? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    /** Registered: the confirmation link was sent to this address. */
+    val confirmationSentTo: String? = null,
 )
 
 class RegisterViewModel(
@@ -126,7 +128,13 @@ class RegisterViewModel(
             } else {
                 auth.registerOperator(form)
             }
-            _uiState.update { it.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message) }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = result.exceptionOrNull()?.message,
+                    confirmationSentTo = if (result.isSuccess) form.email.trim() else null,
+                )
+            }
         }
     }
 
