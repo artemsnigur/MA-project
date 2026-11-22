@@ -71,7 +71,11 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
         val thumbnail: String
         if (ref.type == MediaType.VIDEO) {
             val output = File(applicationContext.cacheDir, "${ref.id}.mp4")
-            compressVideo(applicationContext, file, output)
+            // A video the phone cannot decode would fail again on every retry, so it is marked as failed.
+            if (runCatching { compressVideo(applicationContext, file, output) }.isFailure) {
+                markState(ticket.id, ref.id, UploadState.FAILED, null)
+                return
+            }
             // Some encoders ignore the requested bitrate; then a short original can be the smaller file.
             val compressed = if (output.length() <= file.length()) output else file
             if (compressed.length() > VideoSize.MAX_BYTES) {

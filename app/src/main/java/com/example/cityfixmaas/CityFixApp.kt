@@ -13,7 +13,7 @@ class CityFixApp : Application() {
     /** Real Firebase data; set USE_FIREBASE = false to try screens with the in-memory fakes. */
     val container: AppContainer by lazy { if (USE_FIREBASE) FirebaseAppContainer(this) else FakeAppContainer() }
 
-    /** Ticket notifications and the automatic close after 5 days. */
+    /** The automatic close after 5 days and the 24 h reminder (other notifications arrive as push). */
     val watcher by lazy { TicketWatcher(this, container) }
 
     override fun onCreate() {

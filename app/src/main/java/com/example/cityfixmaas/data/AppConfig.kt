@@ -39,7 +39,7 @@ object AppConfig {
         "test1795090837@example.com",
     )
 
-    /** Operators must register with an email in this domain. TODO: confirm the domain. */
+    /** Operators must register with an email in this domain (Câmara Municipal de Coimbra). */
     const val MUNICIPAL_EMAIL_DOMAIN = "cm-coimbra.pt"
 }
 
