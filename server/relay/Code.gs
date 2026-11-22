@@ -126,3 +126,11 @@ function ownerAuth() {
 function reply(body) {
   return ContentService.createTextOutput(JSON.stringify(body)).setMimeType(ContentService.MimeType.JSON);
 }
+
+/** Run once from the editor (Run > authorize): asks for the email and Drive permissions and checks them. */
+function authorize() {
+  Logger.log('Emails left today: ' + MailApp.getRemainingDailyQuota());
+  const folders = DriveApp.getFoldersByName(VIDEO_FOLDER);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(VIDEO_FOLDER);
+  Logger.log('Drive folder ready: ' + folder.getName());
+}
