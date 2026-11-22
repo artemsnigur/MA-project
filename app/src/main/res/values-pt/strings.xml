@@ -77,13 +77,13 @@
     <string name="report_type">Tipo</string>
     <string name="report_description">Descrição</string>
     <string name="report_public">Pública (todos podem ver, sem o seu nome)</string>
-    <string name="report_photos_selected">Fotos selecionadas: %1$d</string>
+    <string name="report_photos_selected">Fotos e vídeos selecionados: %1$d</string>
     <string name="report_send">Enviar</string>
     <string name="detail_public">Pública</string>
     <string name="detail_private">Privada</string>
-    <string name="detail_photos">Fotos</string>
+    <string name="detail_photos">Fotos e vídeos</string>
     <string name="detail_change_state">Alterar estado</string>
-    <string name="detail_add_resolution_photos">Adicionar fotos do trabalho concluído</string>
+    <string name="detail_add_resolution_photos">Adicionar fotos ou vídeos do trabalho concluído</string>
     <string name="detail_history">Histórico</string>
     <string name="photo_uploading">A enviar…</string>
     <string name="photo_failed">Falha no envio</string>
@@ -107,7 +107,7 @@
     <string name="report_location_captured">Localização: %1$.4f, %2$.4f</string>
     <string name="report_location_detecting">A obter localização…</string>
     <string name="report_location_refresh">Atualizar localização</string>
-    <string name="report_error_photos">É necessária pelo menos uma fotografia</string>
+    <string name="report_error_photos">É necessária pelo menos uma fotografia ou vídeo</string>
     <string name="report_remove_photo">Remover fotografia</string>
     <string name="detail_messages">Mensagens</string>
     <string name="message_hint">Escreva uma mensagem…</string>
@@ -162,4 +162,7 @@
     <string name="register_confirm_email_title">Confirme o seu email</string>
     <string name="register_confirm_email_text">Enviámos um link de confirmação para %1$s. Abra-o e depois inicie sessão.</string>
     <string name="register_confirm_email_ok">Ir para iniciar sessão</string>
+    <string name="report_record_video">Gravar vídeo</string>
+    <string name="cd_video">Vídeo</string>
+    <string name="cd_play_video">Reproduzir vídeo</string>
 </resources>

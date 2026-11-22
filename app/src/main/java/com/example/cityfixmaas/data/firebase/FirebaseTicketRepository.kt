@@ -9,6 +9,7 @@ import android.net.Uri
 import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.MediaPhase
 import com.example.cityfixmaas.data.model.MediaRef
+import com.example.cityfixmaas.data.model.MediaType
 import com.example.cityfixmaas.data.model.PublicTicket
 import com.example.cityfixmaas.data.model.StateChange
 import com.example.cityfixmaas.data.model.Ticket
@@ -189,14 +190,15 @@ class FirebaseTicketRepository(
         PhotoUploadWorker.enqueue(context, ticketId)
     }
 
-    /** Copies the photos into app storage and returns their PENDING entries for the ticket. */
+    /** Copies the photos and videos into app storage and returns their PENDING entries for the ticket. */
     private suspend fun savePhotos(uris: List<Uri>, phase: MediaPhase, now: Long): List<MediaRef> =
         withContext(Dispatchers.IO) {
             val uid = auth.currentUser?.uid.orEmpty()
             uris.map { uri ->
                 val mediaId = UUID.randomUUID().toString()
                 PhotoUploadWorker.saveLocally(context, uri, mediaId)
-                MediaRef(id = mediaId, phase = phase, uploadState = UploadState.PENDING, createdAt = now, addedBy = uid)
+                val type = if (context.contentResolver.getType(uri)?.startsWith("video/") == true) MediaType.VIDEO else MediaType.PHOTO
+                MediaRef(id = mediaId, phase = phase, uploadState = UploadState.PENDING, createdAt = now, type = type, addedBy = uid)
             }
         }
 

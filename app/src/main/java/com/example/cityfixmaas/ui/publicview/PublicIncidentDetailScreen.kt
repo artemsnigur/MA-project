@@ -32,7 +32,7 @@ import com.example.cityfixmaas.data.repository.CategoryRepository
 import com.example.cityfixmaas.data.repository.MediaRepository
 import com.example.cityfixmaas.data.repository.PublicRepository
 import com.example.cityfixmaas.di.appContainer
-import com.example.cityfixmaas.ui.components.Base64Image
+import com.example.cityfixmaas.ui.components.MediaPreview
 import com.example.cityfixmaas.ui.components.IncidentMap
 import com.example.cityfixmaas.ui.components.formatTime
 import com.example.cityfixmaas.ui.components.labelRes
@@ -105,7 +105,7 @@ fun PublicIncidentDetailScreen(
         Text(stringResource(R.string.detail_photos), style = MaterialTheme.typography.titleMedium)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             photos.forEach { photo ->
-                Base64Image(photo.imageBase64, Modifier.size(140.dp), contentDescription = stringResource(R.string.cd_incident_thumbnail))
+                MediaPreview(photo.imageBase64, photo.videoBase64, Modifier.size(140.dp), contentDescription = stringResource(R.string.cd_incident_thumbnail))
             }
         }
     }

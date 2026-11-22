@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.ui.tickets
 
+import androidx.compose.material.icons.filled.Videocam
 import android.widget.Toast
 import android.Manifest
 import android.content.Context
@@ -196,6 +197,11 @@ fun ReportIncidentScreen(
             tempCameraUri?.let { viewModel.addPhotos(listOf(it)) }
         }
     }
+    val recordVideoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()) { success ->
+        if (success) {
+            tempCameraUri?.let { viewModel.addPhotos(listOf(it)) }
+        }
+    }
 
     // Location permissions
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -210,9 +216,16 @@ fun ReportIncidentScreen(
 
     // The system camera app takes the photo, so the app itself needs no CAMERA permission.
     fun launchCamera() {
-        val uri = createTempImageUri(context)
+        val uri = createTempFileUri(context, ".jpg")
         tempCameraUriString = uri.toString()
         takePictureLauncher.launch(uri)
+    }
+
+    // Also the system camera app; the video is shortened and compressed before upload (VideoSize).
+    fun launchVideoCamera() {
+        val uri = createTempFileUri(context, ".mp4")
+        tempCameraUriString = uri.toString()
+        recordVideoLauncher.launch(uri)
     }
 
     LaunchedEffect(state.done) {
@@ -355,9 +368,9 @@ fun ReportIncidentScreen(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
-                    onClick = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    onClick = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 ) {
                     Icon(Icons.Default.PhotoLibrary, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -368,6 +381,12 @@ fun ReportIncidentScreen(
                     Icon(Icons.Default.CameraAlt, contentDescription = null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.report_camera))
+                }
+
+                OutlinedButton(onClick = { launchVideoCamera() }) {
+                    Icon(Icons.Default.Videocam, contentDescription = null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.report_record_video))
                 }
             }
 
@@ -383,12 +402,18 @@ fun ReportIncidentScreen(
                                 .size(90.dp)
                                 .clip(RoundedCornerShape(8.dp)),
                         ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = stringResource(R.string.cd_incident_thumbnail),
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                            if (context.contentResolver.getType(uri)?.startsWith("video/") == true) {
+                                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Videocam, contentDescription = stringResource(R.string.cd_video))
+                                }
+                            } else {
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = stringResource(R.string.cd_incident_thumbnail),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                             IconButton(
                                 onClick = { viewModel.removePhoto(uri) },
                                 modifier = Modifier
@@ -459,9 +484,9 @@ fun ReportIncidentScreen(
     }
 }
 
-/** Creates a temporary image file in cache and wraps it with FileProvider. */
-private fun createTempImageUri(context: Context): Uri {
-    val tempFile = File.createTempFile("ticket_photo_", ".jpg", context.cacheDir).apply {
+/** Creates a temporary file in cache for the camera app and wraps it with FileProvider. */
+private fun createTempFileUri(context: Context, extension: String): Uri {
+    val tempFile = File.createTempFile("ticket_media_", extension, context.cacheDir).apply {
         createNewFile()
         deleteOnExit()
     }

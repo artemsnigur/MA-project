@@ -79,13 +79,13 @@
     <string name="report_type">Type</string>
     <string name="report_description">Description</string>
     <string name="report_public">Public (everyone can see it, without your name)</string>
-    <string name="report_photos_selected">Photos selected: %1$d</string>
+    <string name="report_photos_selected">Photos and videos selected: %1$d</string>
     <string name="report_send">Send</string>
     <string name="detail_public">Public</string>
     <string name="detail_private">Private</string>
-    <string name="detail_photos">Photos</string>
+    <string name="detail_photos">Photos and videos</string>
     <string name="detail_change_state">Change state</string>
-    <string name="detail_add_resolution_photos">Add photos of the completed work</string>
+    <string name="detail_add_resolution_photos">Add photos or videos of the completed work</string>
     <string name="detail_history">History</string>
     <string name="photo_uploading">Uploading…</string>
     <string name="photo_failed">Upload failed</string>
@@ -109,7 +109,7 @@
     <string name="report_location_captured">Location: %1$.4f, %2$.4f</string>
     <string name="report_location_detecting">Detecting location…</string>
     <string name="report_location_refresh">Refresh location</string>
-    <string name="report_error_photos">At least one photo is required</string>
+    <string name="report_error_photos">At least one photo or video is required</string>
     <string name="report_remove_photo">Remove photo</string>
     <string name="detail_messages">Messages</string>
     <string name="message_hint">Write a message…</string>
@@ -164,4 +164,7 @@
     <string name="register_confirm_email_title">Confirm your email</string>
     <string name="register_confirm_email_text">We sent a confirmation link to %1$s. Open it, then sign in.</string>
     <string name="register_confirm_email_ok">Go to sign in</string>
+    <string name="report_record_video">Record video</string>
+    <string name="cd_video">Video</string>
+    <string name="cd_play_video">Play video</string>
 </resources>

@@ -48,6 +48,7 @@ data class MediaRef(
     val phase: MediaPhase = MediaPhase.REPORT,
     val uploadState: UploadState = UploadState.PENDING,
     val createdAt: Long = 0,
+    val type: MediaType = MediaType.PHOTO,
     /** uid of the citizen or operator who added it; only their phone holds the file to upload. */
     val addedBy: String = "",
 )
@@ -56,8 +57,10 @@ data class MediaRef(
 data class MediaContent(
     val id: String = "",
     val ticketId: String = "",
-    /** Compressed JPEG (max 1280 px) encoded as Base64. */
+    /** Compressed JPEG (max 1280 px) encoded as Base64; for a video, its first frame. */
     val imageBase64: String = "",
+    /** Short compressed MP4 encoded as Base64 (see VideoSize), only for videos. */
+    val videoBase64: String? = null,
     val phase: MediaPhase = MediaPhase.REPORT,
     val createdAt: Long = 0,
 )

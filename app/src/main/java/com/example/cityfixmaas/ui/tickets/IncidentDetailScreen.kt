@@ -60,7 +60,7 @@ import com.example.cityfixmaas.data.repository.MessageRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.data.repository.UserAdminRepository
 import com.example.cityfixmaas.di.appContainer
-import com.example.cityfixmaas.ui.components.Base64Image
+import com.example.cityfixmaas.ui.components.MediaPreview
 import com.example.cityfixmaas.ui.components.IncidentMap
 import com.example.cityfixmaas.ui.components.formatTime
 import com.example.cityfixmaas.ui.components.labelRes
@@ -198,10 +198,10 @@ fun IncidentDetailScreen(
         Text(stringResource(R.string.detail_photos), style = MaterialTheme.typography.titleMedium)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             t.media.forEach { ref ->
-                // Full photo once uploaded; until then the thumbnail (or an empty box).
-                val full = photos.find { it.id == ref.id }?.imageBase64
+                // Full photo (or playable video) once uploaded; until then the thumbnail (or an empty box).
+                val full = photos.find { it.id == ref.id }
                 Column {
-                    Base64Image(full ?: ref.thumbnailBase64, Modifier.size(130.dp), stringResource(R.string.cd_incident_thumbnail))
+                    MediaPreview(full?.imageBase64 ?: ref.thumbnailBase64, full?.videoBase64, Modifier.size(130.dp), stringResource(R.string.cd_incident_thumbnail))
                     val status = when {
                         ref.uploadState == UploadState.PENDING -> stringResource(R.string.photo_uploading)
                         ref.uploadState == UploadState.FAILED -> stringResource(R.string.photo_failed)
@@ -226,7 +226,7 @@ fun IncidentDetailScreen(
                 }
             }
             if (t.lifecycleState == LifecycleState.IN_RESOLUTION) {
-                OutlinedButton(onClick = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                OutlinedButton(onClick = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }) {
                     Text(stringResource(R.string.detail_add_resolution_photos))
                 }
             }
