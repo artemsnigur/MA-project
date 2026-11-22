@@ -2,7 +2,7 @@
 
 **Mobile Architectures** · Bachelor in Informatics Engineering · Coimbra Institute of Engineering (ISEC) · 2026/27
 
-**Authors:** {{STUDENTS}}
+**Authors:** Musa Baba Akanya (2026109854) · Artem Snigur (2026122037)
 
 **Repository:** Android project `CityFix` (Kotlin, Jetpack Compose) with Firebase Authentication, Cloud Firestore,
 Firebase Cloud Messaging and a small Google Apps Script relay (`server/relay`).
