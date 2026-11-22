@@ -77,6 +77,8 @@ class FirebaseB2SmokeTest {
         assertTrue(joined.joinedExisting)
         assertEquals(id, joined.id)
         assertTrue(waitFor(tickets.observeMyTickets()) { list -> list.any { it.id == id } }.isNotEmpty())
+        // The follower's photo joins the same ticket and is uploaded by the follower's phone.
+        waitFor(tickets.observeTicket(id)) { t -> t?.media?.size == 2 && t.media.all { it.uploadState == UploadState.DONE } }
         auth.currentUser!!.delete().await()
         auth.signInWithEmailAndPassword(email, "test-pass-1").await()
         assertEquals(listOf(followerUid), waitFor(tickets.observeTicket(id)) { it?.followerIds?.isNotEmpty() == true }!!.followerIds)

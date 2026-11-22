@@ -75,10 +75,15 @@ class FirebaseTicketRepository(
         require(draft.description.isNotBlank()) { "Description is required" }
         require(draft.photoUris.isNotEmpty()) { "Add at least one photo" }
 
-        // Same problem already reported nearby: follow that ticket instead of opening a duplicate.
+        // Same problem already reported nearby: join that ticket instead of opening a duplicate.
+        // The citizen becomes a follower and their photos are added to the same ticket.
         val duplicate = findDuplicate(draft)
         if (duplicate != null) {
-            if (duplicate.authorId != uid) tickets.document(duplicate.id).update("followerIds", FieldValue.arrayUnion(uid))
+            val photos = savePhotos(draft.photoUris, MediaPhase.REPORT, System.currentTimeMillis())
+            val changes = mutableMapOf<String, Any>("media" to FieldValue.arrayUnion(*photos.toTypedArray()))
+            if (duplicate.authorId != uid) changes["followerIds"] = FieldValue.arrayUnion(uid)
+            tickets.document(duplicate.id).update(changes) // not awaited: works offline
+            PhotoUploadWorker.enqueue(context, duplicate.id)
             return@runCatching CreatedTicket(duplicate.id, joinedExisting = true)
         }
 
@@ -187,10 +192,11 @@ class FirebaseTicketRepository(
     /** Copies the photos into app storage and returns their PENDING entries for the ticket. */
     private suspend fun savePhotos(uris: List<Uri>, phase: MediaPhase, now: Long): List<MediaRef> =
         withContext(Dispatchers.IO) {
+            val uid = auth.currentUser?.uid.orEmpty()
             uris.map { uri ->
                 val mediaId = UUID.randomUUID().toString()
                 PhotoUploadWorker.saveLocally(context, uri, mediaId)
-                MediaRef(id = mediaId, phase = phase, uploadState = UploadState.PENDING, createdAt = now)
+                MediaRef(id = mediaId, phase = phase, uploadState = UploadState.PENDING, createdAt = now, addedBy = uid)
             }
         }
 
