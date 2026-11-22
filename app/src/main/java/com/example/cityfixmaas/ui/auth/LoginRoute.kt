@@ -24,6 +24,15 @@ fun LoginRoute(
         modifier = modifier,
     )
 
+    state.signInCode?.let { dialogState ->
+        SignInCodeDialog(
+            state = dialogState,
+            onCodeChange = viewModel::onCodeChange,
+            onConfirm = viewModel::onCodeConfirm,
+            onDismiss = viewModel::onCodeDismiss,
+        )
+    }
+
     state.forgotPassword?.let { dialogState ->
         ForgotPasswordDialog(
             state = dialogState,

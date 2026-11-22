@@ -1,5 +1,7 @@
 package com.example.cityfixmaas.worker
 
+import org.json.JSONObject
+import com.example.cityfixmaas.data.relay.Relay
 import com.example.cityfixmaas.data.model.MediaType
 import com.example.cityfixmaas.data.media.videoPoster
 import com.example.cityfixmaas.data.media.compressVideo
@@ -34,8 +36,9 @@ import java.io.File
  * When a ticket is created, its photos are copied into the app's own storage and listed in the
  * ticket as PENDING. This worker then, for each pending photo or video:
  * 1. compresses it (1280 px photo + 200 px thumbnail; a video is shortened and compressed, see
- *    VideoSize, and its first frame gives the picture) and encodes it as Base64,
- * 2. saves the photo in tickets/{id}/media/{mediaId},
+ *    VideoSize, and its first frame gives the picture),
+ * 2. saves the photo as Base64 in tickets/{id}/media/{mediaId}; a video goes to Google Drive
+ *    through the relay, and that document keeps its link and first frame,
  * 3. marks it DONE in the ticket and adds the thumbnail (also to publicTickets for the first photo),
  * 4. deletes the local copy.
  * Only photos added on this phone are touched: a ticket can also have pending photos of another
@@ -72,14 +75,16 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
             // Some encoders ignore the requested bitrate; then a short original can be the smaller file.
             val compressed = if (output.length() <= file.length()) output else file
             if (compressed.length() > VideoSize.MAX_BYTES) {
-                markState(ticket.id, ref.id, UploadState.FAILED, null) // still too big for one document
+                markState(ticket.id, ref.id, UploadState.FAILED, null) // still too big for the relay
                 output.delete()
                 return
             }
             val poster = videoPoster(compressed)
             thumbnail = bitmapToBase64Jpeg(poster, ImageSize.THUMBNAIL)
             val video = Base64.encodeToString(compressed.readBytes(), Base64.NO_WRAP)
-            content = MediaContent(ref.id, ticket.id, bitmapToBase64Jpeg(poster, ImageSize.PHOTO), video, ref.phase, ref.createdAt)
+            val fileId = Relay.call("uploadVideo", JSONObject().put("videoBase64", video).put("name", "${ref.id}.mp4")).getString("fileId")
+            val url = "https://drive.usercontent.google.com/download?id=$fileId&export=download"
+            content = MediaContent(ref.id, ticket.id, bitmapToBase64Jpeg(poster, ImageSize.PHOTO), url, ref.phase, ref.createdAt)
             output.delete()
         } else {
             val uri = Uri.fromFile(file)

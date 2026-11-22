@@ -58,6 +58,9 @@
     <string name="action_forgot_password">Forgot password?</string>
     <string name="prompt_no_account">Don\'t have an account? Register</string>
     <string name="prompt_has_account">Already have an account? Sign in</string>
+    <string name="sign_in_code_title">Enter the sign-in code</string>
+    <string name="sign_in_code_desc">We sent a 6-digit code to %1$s. It is valid for 10 minutes.</string>
+    <string name="label_sign_in_code">Code</string>
     <string name="forgot_password_title">Reset password</string>
     <string name="forgot_password_desc">Enter your email and we will send a password reset link.</string>
 

@@ -24,17 +24,17 @@ import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-// Videos are stored like photos: Base64 in one Firestore document (1 MiB limit, no Cloud
-// Storage on the free plan). So they are short and small: at most 8 s, 240 px high, ~250 kbit/s,
-// no sound, which gives about 250 KB.
+// Videos go to Google Drive through the relay (server/relay), because Cloud Storage needs the
+// paid Firebase plan. They are compressed first so the upload stays small on mobile data:
+// at most 60 s, 480 px high, ~1 Mbit/s, which gives up to about 8 MB.
 
 object VideoSize {
-    const val MAX_DURATION_MS = 8_000L
-    const val HEIGHT = 240
-    const val BITRATE = 250_000
+    const val MAX_DURATION_MS = 60_000L
+    const val HEIGHT = 480
+    const val BITRATE = 1_000_000
 
-    /** Base64 adds a third; with the first frame this stays below the 1 MiB document limit. */
-    const val MAX_BYTES = 600_000
+    /** Base64 adds a third, and the relay accepts requests of up to about 50 MB. */
+    const val MAX_BYTES = 20_000_000
 }
 
 /** Shortens and compresses [input] into [output] (H.264 MP4) with Media3 Transformer. */
@@ -60,7 +60,6 @@ suspend fun compressVideo(context: Context, input: File, output: File) = withCon
             .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(VideoSize.MAX_DURATION_MS).build())
             .build()
         val edited = EditedMediaItem.Builder(item)
-            .setRemoveAudio(true)
             .setEffects(Effects(listOf(), listOf(Presentation.createForHeight(VideoSize.HEIGHT))))
             .build()
         transformer.start(edited, output.path)

@@ -50,8 +50,8 @@ class DemoDataSeed {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val tickets = FirebaseTicketRepository(context, auth, db, PushSender(auth))
-    private val messages = FirebaseMessageRepository(auth, db, PushSender(auth))
+    private val tickets = FirebaseTicketRepository(context, auth, db, PushSender())
+    private val messages = FirebaseMessageRepository(auth, db, PushSender())
     private val day = 24 * 3_600_000L
 
     private class Demo(

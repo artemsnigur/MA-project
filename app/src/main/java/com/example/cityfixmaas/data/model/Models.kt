@@ -59,8 +59,8 @@ data class MediaContent(
     val ticketId: String = "",
     /** Compressed JPEG (max 1280 px) encoded as Base64; for a video, its first frame. */
     val imageBase64: String = "",
-    /** Short compressed MP4 encoded as Base64 (see VideoSize), only for videos. */
-    val videoBase64: String? = null,
+    /** Download link of the compressed MP4 in Google Drive (see VideoSize), only for videos. */
+    val videoUrl: String? = null,
     val phase: MediaPhase = MediaPhase.REPORT,
     val createdAt: Long = 0,
 )

@@ -28,6 +28,8 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val forgotPassword: ForgotPasswordState? = null,
+    /** Shown after the password was accepted and a code was emailed. */
+    val signInCode: SignInCodeState? = null,
 ) {
     val isValid: Boolean
         get() = emailError == null && passwordError == null &&
@@ -55,9 +57,37 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val result = auth.signIn(email, password)
-            // On success the session changes and AppShell shows the next screen by itself.
-            _uiState.update { it.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message) }
+            // When signed in, the session changes and AppShell shows the next screen by itself.
+            val codeSent = result.getOrNull() == true
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = result.exceptionOrNull()?.message,
+                    signInCode = if (codeSent) SignInCodeState(email) else null,
+                )
+            }
         }
+    }
+
+    fun onCodeChange(value: String) =
+        _uiState.update { it.copy(signInCode = it.signInCode?.copy(code = value, errorMessage = null)) }
+
+    fun onCodeConfirm() {
+        val dialog = _uiState.value.signInCode ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(signInCode = dialog.copy(isChecking = true)) }
+            val result = auth.confirmSignInCode(dialog.code)
+            _uiState.update {
+                // A wrong code is used up, so the dialog closes and the user signs in again for a new one.
+                if (result.isSuccess) it.copy(signInCode = null) else it.copy(signInCode = null, errorMessage = result.exceptionOrNull()?.message)
+            }
+            if (result.isFailure) auth.signOut()
+        }
+    }
+
+    fun onCodeDismiss() {
+        _uiState.update { it.copy(signInCode = null) }
+        viewModelScope.launch { auth.signOut() }
     }
 
     fun onForgotPasswordClick() {

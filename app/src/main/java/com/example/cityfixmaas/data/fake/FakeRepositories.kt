@@ -56,14 +56,18 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
             if (user == null) SessionState.Anonymous else SessionState.SignedIn(user)
         }.stateIn(backend.scope, SharingStarted.Eagerly, SessionState.Anonymous)
 
-    override suspend fun signIn(email: String, password: String): Result<Unit> {
+    /** No sign-in code in demo mode. */
+    override suspend fun signIn(email: String, password: String): Result<Boolean> {
         latency()
         return attempt {
             val user = backend.users.value.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
             require(user != null && backend.passwords[user.email] == password) { "Wrong email or password" }
             backend.currentUid.value = user.id
+            false
         }
     }
+
+    override suspend fun confirmSignInCode(code: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> {
         latency()

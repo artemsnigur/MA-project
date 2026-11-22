@@ -105,7 +105,7 @@ fun PublicIncidentDetailScreen(
         Text(stringResource(R.string.detail_photos), style = MaterialTheme.typography.titleMedium)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             photos.forEach { photo ->
-                MediaPreview(photo.imageBase64, photo.videoBase64, Modifier.size(140.dp), contentDescription = stringResource(R.string.cd_incident_thumbnail))
+                MediaPreview(photo.imageBase64, photo.videoUrl, Modifier.size(140.dp), contentDescription = stringResource(R.string.cd_incident_thumbnail))
             }
         }
     }

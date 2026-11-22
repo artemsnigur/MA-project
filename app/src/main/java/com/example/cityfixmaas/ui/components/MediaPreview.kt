@@ -1,6 +1,7 @@
 package com.example.cityfixmaas.ui.components
 
-import android.util.Base64
+import androidx.compose.material3.CircularProgressIndicator
+import java.net.URL
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.background
@@ -34,11 +35,11 @@ import java.io.File
 
 /** A photo, or for a video its first frame with a play button that opens the player. */
 @Composable
-fun MediaPreview(imageBase64: String?, videoBase64: String?, modifier: Modifier = Modifier, contentDescription: String? = null) {
+fun MediaPreview(imageBase64: String?, videoUrl: String?, modifier: Modifier = Modifier, contentDescription: String? = null) {
     var playing by rememberSaveable { mutableStateOf(false) }
-    Box(if (videoBase64 != null) modifier.clickable { playing = true } else modifier, contentAlignment = Alignment.Center) {
+    Box(if (videoUrl != null) modifier.clickable { playing = true } else modifier, contentAlignment = Alignment.Center) {
         Base64Image(imageBase64, Modifier.matchParentSize(), contentDescription)
-        if (videoBase64 != null) {
+        if (videoUrl != null) {
             Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = stringResource(R.string.cd_play_video),
@@ -47,19 +48,26 @@ fun MediaPreview(imageBase64: String?, videoBase64: String?, modifier: Modifier 
             )
         }
     }
-    if (playing && videoBase64 != null) VideoDialog(videoBase64, onDismiss = { playing = false })
+    if (playing && videoUrl != null) VideoDialog(videoUrl, onDismiss = { playing = false })
 }
 
-/** Plays a Base64 MP4: it is written to a cache file, which the Android VideoView can open. */
+/** Plays a video from Google Drive: it is downloaded to a cache file, which the Android VideoView can open. */
 @Composable
-private fun VideoDialog(videoBase64: String, onDismiss: () -> Unit) {
+private fun VideoDialog(videoUrl: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val file by produceState<File?>(null, videoBase64) {
+    val file by produceState<File?>(null, videoUrl) {
         value = withContext(Dispatchers.IO) {
-            File(context.cacheDir, "play-${videoBase64.hashCode()}.mp4").apply { writeBytes(Base64.decode(videoBase64, Base64.DEFAULT)) }
+            val cached = File(context.cacheDir, "play-${videoUrl.hashCode()}.mp4")
+            if (!cached.exists()) {
+                val part = File(context.cacheDir, "${cached.name}.part") // renamed only when complete
+                runCatching { URL(videoUrl).openStream().use { input -> part.outputStream().use { input.copyTo(it) } } }
+                    .onSuccess { part.renameTo(cached) }
+            }
+            cached.takeIf { it.exists() }
         }
     }
     Dialog(onDismissRequest = onDismiss) {
+        if (file == null) CircularProgressIndicator() // downloading
         file?.let { video ->
             AndroidView(
                 factory = { ctx ->
