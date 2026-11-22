@@ -1,4 +1,4 @@
-package com.example.cityfixmaas.notifications
+package com.example.cityfixmaas.monitoring
 
 import com.example.cityfixmaas.data.AppConfig
 import com.example.cityfixmaas.data.distanceTo
@@ -9,9 +9,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 /**
- * The 20 m geofence of tickets in resolution. Runs on the operator's phone while the app is on
- * screen: every 30 s it takes the GPS position and marks the tickets in resolution within 20 m.
- * The citizens' apps see the mark and show a notification (TicketWatcher).
+ * The 20 m geofence of tickets in resolution. Runs on the operator's phone in MonitoringService,
+ * so also in the background: every 30 s it takes the GPS position and marks the tickets in
+ * resolution within 20 m. The citizens' apps see the mark and show a notification (TicketWatcher).
  */
 class OperatorGeofence(private val tickets: TicketRepository, private val location: LocationProvider) {
 

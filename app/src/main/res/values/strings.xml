@@ -167,4 +167,7 @@
     <string name="report_record_video">Record video</string>
     <string name="cd_video">Video</string>
     <string name="cd_play_video">Play video</string>
+    <string name="monitoring_channel">Background monitoring</string>
+    <string name="monitoring_citizen">Impact Detection is on: watching the road for potholes</string>
+    <string name="monitoring_operator">Sharing your location with residents of incidents in resolution</string>
 </resources>
