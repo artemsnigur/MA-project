@@ -1,4 +1,4 @@
-package com.example.cityfixmaas.sensors
+package com.example.cityfixmaas.monitoring
 
 import android.content.Context
 import android.hardware.Sensor
@@ -7,6 +7,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -17,6 +18,9 @@ import kotlin.math.sqrt
  * far it jumps away from gravity. At most one event every [COOLDOWN_MS].
  */
 object ImpactDetector {
+    /** Jolts found by MonitoringService while the app is on screen; AppShell shows a dialog for them. */
+    val detectedInApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     /** About 1.5 g on top of gravity: walking or a normal car ride stays well below this. */
     private const val THRESHOLD = 15f
     private const val COOLDOWN_MS = 30_000L

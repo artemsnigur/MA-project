@@ -1,12 +1,11 @@
 package com.example.cityfixmaas.ui.navigation
 
-import com.example.cityfixmaas.CityFixApp
-import com.example.cityfixmaas.notifications.OperatorGeofence
-import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.Lifecycle
-import com.example.cityfixmaas.sensors.ImpactDetector
-import androidx.lifecycle.flowWithLifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import com.example.cityfixmaas.monitoring.MonitoringService
+import com.example.cityfixmaas.monitoring.ImpactDetector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,7 +64,11 @@ import com.example.cityfixmaas.ui.tickets.TicketListScreen
  * mode's start screen.
  */
 @Composable
-fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory)) {
+fun AppShell(
+    roadDefectRequested: Boolean = false,
+    onRoadDefectOpened: () -> Unit = {},
+    sessionViewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory),
+) {
     val mode by sessionViewModel.mode.collectAsStateWithLifecycle()
     val currentMode = mode
     if (currentMode == null) {
@@ -73,42 +76,43 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
         return
     }
 
-    // Signed-in users get notifications about their incidents (Android 13+ asks first);
-    // operators also share their location for the 20 m geofence.
-    val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
-    LaunchedEffect(currentMode) {
+    // Background work (MonitoringService): the operator's 20 m geofence, or the citizen's Impact
+    // Detection. Both need location; signed-in users also get notifications (Android 13+ asks first).
+    val impactDetection by sessionViewModel.impactDetection.collectAsStateWithLifecycle()
+    val monitoring = currentMode == AppMode.OPERATOR || impactDetection
+    val context = LocalContext.current
+    var permissionsAnswered by remember { mutableIntStateOf(0) }
+    val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissionsAnswered++ }
+    LaunchedEffect(currentMode, monitoring) {
         val permissions = buildList {
             if (Build.VERSION.SDK_INT >= 33 && (currentMode == AppMode.CITIZEN || currentMode == AppMode.OPERATOR)) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
-            if (currentMode == AppMode.OPERATOR) {
+            if (monitoring) {
                 add(Manifest.permission.ACCESS_FINE_LOCATION)
                 add(Manifest.permission.ACCESS_COARSE_LOCATION)
             }
         }
         if (permissions.isNotEmpty()) askPermissions.launch(permissions.toTypedArray())
     }
-
-    // The operator's geofence runs while the app is on screen.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val container = (LocalContext.current.applicationContext as CityFixApp).container
-    LaunchedEffect(currentMode) {
-        if (currentMode == AppMode.OPERATOR) {
-            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { OperatorGeofence(container.tickets, container.location).run() }
-        }
+    LaunchedEffect(currentMode, monitoring, permissionsAnswered) {
+        val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (monitoring && hasLocation) MonitoringService.start(context, operator = currentMode == AppMode.OPERATOR) else MonitoringService.stop(context)
     }
 
     key(currentMode) {
         val anonymous = currentMode == AppMode.ANONYMOUS
         val navController = rememberNavController()
 
-        // Impact Detection: while the app is on screen, a hard jolt suggests a road defect report.
-        val impactDetection by sessionViewModel.impactDetection.collectAsStateWithLifecycle()
+        // Impact Detection: a jolt while the app is on screen suggests a road defect report here;
+        // in the background MonitoringService shows a notification that leads to the same form.
         var showImpactDialog by rememberSaveable { mutableStateOf(false) }
-        val context = LocalContext.current
-        val lifecycle = lifecycleOwner.lifecycle
-        LaunchedEffect(impactDetection) {
-            if (impactDetection) ImpactDetector.impacts(context).flowWithLifecycle(lifecycle).collect { showImpactDialog = true }
+        LaunchedEffect(Unit) { ImpactDetector.detectedInApp.collect { showImpactDialog = true } }
+        LaunchedEffect(roadDefectRequested) {
+            if (roadDefectRequested && currentMode == AppMode.CITIZEN) {
+                navController.navigate(ReportIncidentRoute(roadDefect = true))
+                onRoadDefectOpened()
+            }
         }
         if (showImpactDialog) {
             AlertDialog(

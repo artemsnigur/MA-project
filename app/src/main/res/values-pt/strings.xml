@@ -165,4 +165,7 @@
     <string name="report_record_video">Gravar vídeo</string>
     <string name="cd_video">Vídeo</string>
     <string name="cd_play_video">Reproduzir vídeo</string>
+    <string name="monitoring_channel">Monitorização em segundo plano</string>
+    <string name="monitoring_citizen">Deteção de impacto ativa: a vigiar buracos na estrada</string>
+    <string name="monitoring_operator">A partilhar a sua localização com os cidadãos das ocorrências em resolução</string>
 </resources>
