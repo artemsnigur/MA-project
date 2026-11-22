@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
  *
  * It compares each ticket with what the user saw last time (kept in SharedPreferences) and notifies:
  * - everyone: state changes made by somebody else, and new messages from the other side;
- * - citizens also: 24 h before a resolved ticket closes.
+ * - citizens also: an operator within 20 m of a ticket in resolution, and 24 h before a resolved ticket closes.
  * It runs while the app is alive ([start]) and every 15 minutes in the background (TicketCheckWorker).
  */
 class TicketWatcher(private val context: Context, private val container: AppContainer) {
@@ -75,11 +75,15 @@ class TicketWatcher(private val context: Context, private val container: AppCont
         tickets.forEach { ticket ->
             val seenState = prefs.getString("state_${ticket.id}", null)
             val seenMessageAt = prefs.getLong("message_${ticket.id}", -1)
+            val seenNearbyAt = prefs.getLong("nearby_${ticket.id}", -1)
 
             // A ticket seen for the first time is only remembered, never announced.
             if (seenState != null) {
                 if (seenState != ticket.lifecycleState.name && ticket.stateChangedBy != user.id) {
                     notify(ticket, context.getString(R.string.notif_state_changed, context.getString(ticket.lifecycleState.labelRes())))
+                }
+                if (role == UserRole.CITIZEN && ticket.operatorNearbyAt > seenNearbyAt) {
+                    notify(ticket, context.getString(R.string.notif_operator_nearby))
                 }
                 if (ticket.lastMessageAt > seenMessageAt && ticket.lastMessageRole != role) {
                     notify(ticket, context.getString(R.string.notif_new_message))
@@ -96,6 +100,7 @@ class TicketWatcher(private val context: Context, private val container: AppCont
             prefs.edit {
                 putString("state_${ticket.id}", ticket.lifecycleState.name)
                 putLong("message_${ticket.id}", ticket.lastMessageAt)
+                putLong("nearby_${ticket.id}", ticket.operatorNearbyAt)
             }
         }
     }

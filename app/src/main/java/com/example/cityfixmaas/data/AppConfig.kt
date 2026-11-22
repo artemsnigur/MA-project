@@ -12,6 +12,9 @@ object AppConfig {
 
     const val ANONYMOUS_RADIUS_METERS = 10_000.0
 
+    /** An operator this close to a ticket in resolution notifies its citizens. */
+    const val OPERATOR_GEOFENCE_METERS = 20.0
+
     /** Category preselected when Impact Detection suggests a road defect report. */
     const val ROAD_CATEGORY_ID = "cat-roads"
 

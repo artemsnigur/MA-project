@@ -149,6 +149,10 @@ class FirebaseTicketRepository(
         moveTo(ticket, LifecycleState.INFORMATION_REQUEST, uid, question.trim())
     }
 
+    override suspend fun markOperatorNearby(ticketId: String) {
+        tickets.document(ticketId).update("operatorNearbyAt", System.currentTimeMillis()) // not awaited: works offline
+    }
+
     override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
         val uid = auth.currentUser?.uid ?: return
         tickets.filter { it.isReopenExpired(System.currentTimeMillis()) }

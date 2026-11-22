@@ -96,6 +96,9 @@ interface TicketRepository {
     /** Author or follower: OPEN -> INFORMATION_REQUEST, asking the municipality a question (kept in the history). */
     suspend fun requestInformation(ticketId: String, question: String): Result<Unit>
 
+    /** Operator only: records that the operator is within 20 m of this ticket now (see OperatorGeofence). */
+    suspend fun markOperatorNearby(ticketId: String)
+
     /**
      * Closes the given tickets that were resolved more than 5 days ago. There is no server code
      * (Spark plan), so the apps of the author and of the operators do it when they see such a ticket.
