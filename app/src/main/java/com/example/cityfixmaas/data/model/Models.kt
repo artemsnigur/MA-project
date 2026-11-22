@@ -82,13 +82,8 @@ data class Ticket(
     val resolvedAt: Long? = null,
     /** Other citizens who reported the same problem (see AppConfig.DUPLICATE_RADIUS_METERS); they follow the ticket too. */
     val followerIds: List<String> = emptyList(),
-    /** uid of whoever made the last state change; nobody is notified about their own change. */
-    val stateChangedBy: String = "",
-    /** Last time an operator was within 20 m while the ticket was in resolution; the citizens get notified. */
+    /** Last time an operator was within 20 m while the ticket was in resolution (the citizens got a push). */
     val operatorNearbyAt: Long = 0,
-    /** Time and sender role of the newest message; used for local notifications. */
-    val lastMessageAt: Long = 0,
-    val lastMessageRole: UserRole? = null,
 ) {
     /** The author may reopen a resolved ticket during the first 5 days. */
     fun canReopen(now: Long): Boolean =

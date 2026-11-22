@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.di
 
+import com.example.cityfixmaas.push.PushSender
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -83,10 +84,12 @@ class FirebaseAppContainer(context: Context) : AppContainer {
     override val auth: AuthRepository = FirebaseAuthRepository(context, firebaseAuth, db, scope)
     override val userAdmin: UserAdminRepository = FirebaseUserAdminRepository(db)
     override val categories: CategoryRepository = FirebaseCategoryRepository(db)
-    override val tickets: TicketRepository = FirebaseTicketRepository(context, firebaseAuth, db)
+    private val push = PushSender(firebaseAuth)
+
+    override val tickets: TicketRepository = FirebaseTicketRepository(context, firebaseAuth, db, push)
     override val media: MediaRepository = FirebaseMediaRepository(db)
     override val publicData: PublicRepository = FirebasePublicRepository(db)
-    override val messages: MessageRepository = FirebaseMessageRepository(firebaseAuth, db)
+    override val messages: MessageRepository = FirebaseMessageRepository(firebaseAuth, db, push)
     override val location: LocationProvider = FusedLocationProvider(context)
 }
 
