@@ -192,9 +192,10 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
                     it.location.distanceTo(draft.location) <= AppConfig.DUPLICATE_RADIUS_METERS
             }
             if (duplicate != null) {
-                if (duplicate.authorId != user.id) {
-                    backend.tickets.update { it + (duplicate.id to duplicate.copy(followerIds = (duplicate.followerIds + user.id).distinct())) }
-                }
+                val photos = draft.photoUris.map { newMedia(duplicate.id, MediaPhase.REPORT, now()) }
+                val followers = if (duplicate.authorId == user.id) duplicate.followerIds else (duplicate.followerIds + user.id).distinct()
+                backend.tickets.update { it + (duplicate.id to duplicate.copy(followerIds = followers, media = duplicate.media + photos.map { p -> p.first })) }
+                backend.media.update { it + (duplicate.id to it[duplicate.id].orEmpty() + photos.map { p -> p.second }) }
                 return@attempt CreatedTicket(duplicate.id, joinedExisting = true)
             }
 

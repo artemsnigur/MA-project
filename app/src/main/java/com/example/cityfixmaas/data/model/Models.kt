@@ -48,6 +48,8 @@ data class MediaRef(
     val phase: MediaPhase = MediaPhase.REPORT,
     val uploadState: UploadState = UploadState.PENDING,
     val createdAt: Long = 0,
+    /** uid of the citizen or operator who added it; only their phone holds the file to upload. */
+    val addedBy: String = "",
 )
 
 /** Full-size photo, stored in `tickets/{ticketId}/media/{id}`, one document per photo (1 MiB limit). */

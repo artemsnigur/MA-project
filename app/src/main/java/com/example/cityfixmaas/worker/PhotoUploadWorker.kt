@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.worker
 
+import com.google.firebase.auth.FirebaseAuth
 import android.content.Context
 import android.net.Uri
 import androidx.work.Constraints
@@ -30,6 +31,8 @@ import java.io.File
  * 2. saves the photo in tickets/{id}/media/{mediaId},
  * 3. marks it DONE in the ticket and adds the thumbnail (also to publicTickets for the first photo),
  * 4. deletes the local copy.
+ * Only photos added on this phone are touched: a ticket can also have pending photos of another
+ * citizen (grouped reports) or of an operator, and those are uploaded by their own phones.
  * If something fails (e.g. the connection drops), WorkManager runs it again later.
  */
 class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -41,8 +44,10 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
         return try {
             val ticket = db.collection("tickets").document(ticketId).get().await()
                 .toObject<Ticket>() ?: return Result.failure()
-            for (ref in ticket.media.filter { it.uploadState != UploadState.DONE }) {
+            val me = FirebaseAuth.getInstance().currentUser?.uid
+            for (ref in ticket.media.filter { it.uploadState == UploadState.PENDING && it.addedBy == me }) {
                 val file = localFile(applicationContext, ref.id)
+                // The local copy is gone (e.g. app data cleared): this photo can never be uploaded.
                 if (file.exists()) upload(ticket, ref, file) else markState(ticketId, ref.id, UploadState.FAILED, null)
             }
             Result.success()
@@ -69,14 +74,19 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
         file.delete()
     }
 
-    /** Changes the state (and thumbnail) of one photo in the ticket's media list. */
+    /**
+     * Changes the state (and thumbnail) of one photo in the ticket's media list. A transaction,
+     * because two phones may update the same list at the same time (grouped reports).
+     */
     private suspend fun markState(ticketId: String, mediaId: String, state: UploadState, thumbnail: String?) {
         val ticketRef = db.collection("tickets").document(ticketId)
-        val ticket = ticketRef.get().await().toObject<Ticket>() ?: return
-        val media = ticket.media.map {
-            if (it.id == mediaId) it.copy(uploadState = state, thumbnailBase64 = thumbnail ?: it.thumbnailBase64) else it
-        }
-        ticketRef.update("media", media).await()
+        db.runTransaction { transaction ->
+            val ticket = transaction.get(ticketRef).toObject<Ticket>() ?: return@runTransaction
+            val media = ticket.media.map {
+                if (it.id == mediaId) it.copy(uploadState = state, thumbnailBase64 = thumbnail ?: it.thumbnailBase64) else it
+            }
+            transaction.update(ticketRef, "media", media)
+        }.await()
     }
 
     companion object {
