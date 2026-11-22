@@ -177,7 +177,7 @@ class FakeBackend {
         private fun seedMedia(): Map<String, List<MediaContent>> {
             val t = now()
             fun content(id: String, ticketId: String, phase: MediaPhase = MediaPhase.REPORT) =
-                MediaContent(id, ticketId, SAMPLE_IMAGE_BASE64, phase, t)
+                MediaContent(id, ticketId, SAMPLE_IMAGE_BASE64, null, phase, t)
             return mapOf(
                 "t-pothole" to listOf(content("m-pothole", "t-pothole")),
                 "t-lamp" to listOf(content("m-lamp", "t-lamp")),

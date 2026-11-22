@@ -258,7 +258,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
     private fun newMedia(ticketId: String, phase: MediaPhase, at: Long): Pair<MediaRef, MediaContent> {
         val mediaId = newId()
         return MediaRef(mediaId, SAMPLE_IMAGE_BASE64, phase, UploadState.DONE, at) to
-            MediaContent(mediaId, ticketId, SAMPLE_IMAGE_BASE64, phase, at)
+            MediaContent(mediaId, ticketId, SAMPLE_IMAGE_BASE64, null, phase, at)
     }
 
     override suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit> = attempt {

@@ -23,7 +23,11 @@ object ImageSize {
 fun uriToBase64Jpeg(context: Context, uri: Uri, maxSize: Int, quality: Int = 70): String {
     val original = context.contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it) }
         ?: throw IllegalArgumentException("Could not read the photo")
+    return bitmapToBase64Jpeg(original, maxSize, quality)
+}
 
+/** Same as [uriToBase64Jpeg] for a picture already in memory (e.g. a video frame). */
+fun bitmapToBase64Jpeg(original: Bitmap, maxSize: Int, quality: Int = 70): String {
     val scale = maxSize.toFloat() / maxOf(original.width, original.height)
     val resized = if (scale < 1f) {
         Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true)

@@ -27,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ class TicketWatcher(private val context: Context, private val container: AppCont
     suspend fun checkOnce() {
         createChannel()
         val session = container.auth.session.first { it != SessionState.Loading }
-        val (tickets, user) = ticketsOf(session).first()
+        val (tickets, user) = ticketsOf(session).firstOrNull() ?: return // nobody signed in
         handle(tickets, user)
     }
 

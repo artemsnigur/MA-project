@@ -1,5 +1,11 @@
 package com.example.cityfixmaas.worker
 
+import com.example.cityfixmaas.data.model.MediaType
+import com.example.cityfixmaas.data.media.videoPoster
+import com.example.cityfixmaas.data.media.compressVideo
+import com.example.cityfixmaas.data.media.bitmapToBase64Jpeg
+import com.example.cityfixmaas.data.media.VideoSize
+import android.util.Base64
 import com.google.firebase.auth.FirebaseAuth
 import android.content.Context
 import android.net.Uri
@@ -26,8 +32,9 @@ import java.io.File
  * Uploads the photos of one ticket in the background, only when there is internet.
  *
  * When a ticket is created, its photos are copied into the app's own storage and listed in the
- * ticket as PENDING. This worker then, for each pending photo:
- * 1. compresses it (1280 px photo + 200 px thumbnail) and encodes it as Base64,
+ * ticket as PENDING. This worker then, for each pending photo or video:
+ * 1. compresses it (1280 px photo + 200 px thumbnail; a video is shortened and compressed, see
+ *    VideoSize, and its first frame gives the picture) and encodes it as Base64,
  * 2. saves the photo in tickets/{id}/media/{mediaId},
  * 3. marks it DONE in the ticket and adds the thumbnail (also to publicTickets for the first photo),
  * 4. deletes the local copy.
@@ -57,11 +64,28 @@ class PhotoUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
     }
 
     private suspend fun upload(ticket: Ticket, ref: MediaRef, file: File) {
-        val uri = Uri.fromFile(file)
-        val photo = uriToBase64Jpeg(applicationContext, uri, ImageSize.PHOTO)
-        val thumbnail = uriToBase64Jpeg(applicationContext, uri, ImageSize.THUMBNAIL)
-
-        val content = MediaContent(ref.id, ticket.id, photo, ref.phase, ref.createdAt)
+        val content: MediaContent
+        val thumbnail: String
+        if (ref.type == MediaType.VIDEO) {
+            val output = File(applicationContext.cacheDir, "${ref.id}.mp4")
+            compressVideo(applicationContext, file, output)
+            // Some encoders ignore the requested bitrate; then a short original can be the smaller file.
+            val compressed = if (output.length() <= file.length()) output else file
+            if (compressed.length() > VideoSize.MAX_BYTES) {
+                markState(ticket.id, ref.id, UploadState.FAILED, null) // still too big for one document
+                output.delete()
+                return
+            }
+            val poster = videoPoster(compressed)
+            thumbnail = bitmapToBase64Jpeg(poster, ImageSize.THUMBNAIL)
+            val video = Base64.encodeToString(compressed.readBytes(), Base64.NO_WRAP)
+            content = MediaContent(ref.id, ticket.id, bitmapToBase64Jpeg(poster, ImageSize.PHOTO), video, ref.phase, ref.createdAt)
+            output.delete()
+        } else {
+            val uri = Uri.fromFile(file)
+            thumbnail = uriToBase64Jpeg(applicationContext, uri, ImageSize.THUMBNAIL)
+            content = MediaContent(ref.id, ticket.id, uriToBase64Jpeg(applicationContext, uri, ImageSize.PHOTO), null, ref.phase, ref.createdAt)
+        }
         db.collection("tickets").document(ticket.id).collection("media").document(ref.id).set(content).await()
 
         markState(ticket.id, ref.id, UploadState.DONE, thumbnail)

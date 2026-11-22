@@ -30,5 +30,7 @@ enum class LifecycleState {
 /** Whether a photo has been compressed and written to Firestore yet. */
 enum class UploadState { PENDING, DONE, FAILED }
 
+enum class MediaType { PHOTO, VIDEO }
+
 /** REPORT = attached by the citizen; RESOLUTION = evidence of completed work from an operator. */
 enum class MediaPhase { REPORT, RESOLUTION }
