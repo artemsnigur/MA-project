@@ -24,6 +24,18 @@ object AppConfig {
     /** A resolved ticket can be reopened by its author for 5 days; after that it is closed. */
     const val REOPEN_WINDOW_MS = 5 * 24 * 3_600_000L
 
+    /**
+     * Demo accounts with made-up addresses that cannot receive the confirmation email, so they
+     * skip it. Every other account must confirm its email before it can sign in.
+     */
+    val EMAIL_CONFIRMATION_EXEMPT = setOf(
+        "operator@cm-coimbra.pt",
+        "rui.demo@example.com",
+        "joana.demo@example.com",
+        "maria1795093478@example.com",
+        "test1795090837@example.com",
+    )
+
     /** Operators must register with an email in this domain. TODO: confirm the domain. */
     const val MUNICIPAL_EMAIL_DOMAIN = "cm-coimbra.pt"
 }

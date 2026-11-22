@@ -28,9 +28,13 @@ import kotlinx.coroutines.flow.StateFlow
 interface AuthRepository {
     val session: StateFlow<SessionState>
 
+    /** Fails, and sends a new confirmation link, while the account's email is not confirmed. */
     suspend fun signIn(email: String, password: String): Result<Unit>
 
-    /** Creates a PENDING citizen. Fails if the NIF is already registered for citizens. */
+    /**
+     * Creates a PENDING citizen. Fails if the NIF is already registered for citizens.
+     * Registration sends a confirmation email and does not sign in (see signIn).
+     */
     suspend fun registerCitizen(form: RegistrationForm): Result<Unit>
 
     /** Creates an ACTIVE operator. Fails unless the email is in [AppConfig.MUNICIPAL_EMAIL_DOMAIN]. */
