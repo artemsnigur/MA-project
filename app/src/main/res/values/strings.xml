@@ -160,4 +160,5 @@
     <string name="detail_request_info">Ask the municipality</string>
     <string name="dialog_request_info_title">Request information</string>
     <string name="dialog_request_info_label">Your question *</string>
+    <string name="notif_operator_nearby">A municipal team is at your incident</string>
 </resources>

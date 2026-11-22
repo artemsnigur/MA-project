@@ -158,4 +158,5 @@
     <string name="detail_request_info">Perguntar ao município</string>
     <string name="dialog_request_info_title">Pedir informação</string>
     <string name="dialog_request_info_label">A sua pergunta *</string>
+    <string name="notif_operator_nearby">Uma equipa municipal está no local da sua ocorrência</string>
 </resources>

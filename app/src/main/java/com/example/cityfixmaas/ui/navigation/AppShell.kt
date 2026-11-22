@@ -1,5 +1,9 @@
 package com.example.cityfixmaas.ui.navigation
 
+import com.example.cityfixmaas.CityFixApp
+import com.example.cityfixmaas.notifications.OperatorGeofence
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import com.example.cityfixmaas.sensors.ImpactDetector
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -69,11 +73,28 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
         return
     }
 
-    // Signed-in users get notifications about their incidents (Android 13+ asks first).
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    // Signed-in users get notifications about their incidents (Android 13+ asks first);
+    // operators also share their location for the 20 m geofence.
+    val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     LaunchedEffect(currentMode) {
-        if (Build.VERSION.SDK_INT >= 33 && (currentMode == AppMode.CITIZEN || currentMode == AppMode.OPERATOR)) {
-            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        val permissions = buildList {
+            if (Build.VERSION.SDK_INT >= 33 && (currentMode == AppMode.CITIZEN || currentMode == AppMode.OPERATOR)) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (currentMode == AppMode.OPERATOR) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+        }
+        if (permissions.isNotEmpty()) askPermissions.launch(permissions.toTypedArray())
+    }
+
+    // The operator's geofence runs while the app is on screen.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val container = (LocalContext.current.applicationContext as CityFixApp).container
+    LaunchedEffect(currentMode) {
+        if (currentMode == AppMode.OPERATOR) {
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { OperatorGeofence(container.tickets, container.location).run() }
         }
     }
 
@@ -85,7 +106,7 @@ fun AppShell(sessionViewModel: SessionViewModel = viewModel(factory = SessionVie
         val impactDetection by sessionViewModel.impactDetection.collectAsStateWithLifecycle()
         var showImpactDialog by rememberSaveable { mutableStateOf(false) }
         val context = LocalContext.current
-        val lifecycle = LocalLifecycleOwner.current.lifecycle
+        val lifecycle = lifecycleOwner.lifecycle
         LaunchedEffect(impactDetection) {
             if (impactDetection) ImpactDetector.impacts(context).flowWithLifecycle(lifecycle).collect { showImpactDialog = true }
         }

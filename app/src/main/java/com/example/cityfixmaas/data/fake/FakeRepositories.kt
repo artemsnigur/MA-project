@@ -280,6 +280,13 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
         appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.INFORMATION_REQUEST, user.id, now(), question.trim()))
     }
 
+    override suspend fun markOperatorNearby(ticketId: String) {
+        backend.tickets.update { all ->
+            val ticket = all[ticketId] ?: return@update all
+            all + (ticketId to ticket.copy(operatorNearbyAt = now()))
+        }
+    }
+
     override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
         val user = backend.currentUser() ?: return
         tickets.filter { it.isReopenExpired(now()) }.forEach { ticket ->
