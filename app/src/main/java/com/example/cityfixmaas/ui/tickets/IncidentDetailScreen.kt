@@ -201,7 +201,7 @@ fun IncidentDetailScreen(
                 // Full photo (or playable video) once uploaded; until then the thumbnail (or an empty box).
                 val full = photos.find { it.id == ref.id }
                 Column {
-                    MediaPreview(full?.imageBase64 ?: ref.thumbnailBase64, full?.videoBase64, Modifier.size(130.dp), stringResource(R.string.cd_incident_thumbnail))
+                    MediaPreview(full?.imageBase64 ?: ref.thumbnailBase64, full?.videoUrl, Modifier.size(130.dp), stringResource(R.string.cd_incident_thumbnail))
                     val status = when {
                         ref.uploadState == UploadState.PENDING -> stringResource(R.string.photo_uploading)
                         ref.uploadState == UploadState.FAILED -> stringResource(R.string.photo_failed)

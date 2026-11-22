@@ -1,5 +1,10 @@
 package com.example.cityfixmaas.data.firebase
 
+import org.json.JSONObject
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.cityfixmaas.data.relay.Relay
+import androidx.core.content.edit
 import com.google.firebase.firestore.FieldValue
 import com.example.cityfixmaas.data.AppConfig
 import com.google.firebase.auth.FirebaseUser
@@ -41,6 +46,10 @@ class FirebaseAuthRepository(
 
     private val users = db.collection("users")
 
+    /** Users who entered their sign-in code on this phone; kept until they sign out. */
+    private val codePrefs = context.getSharedPreferences("sign-in-code", Context.MODE_PRIVATE)
+    private val codeConfirmed = MutableStateFlow(codePrefs.getStringSet(KEY_CONFIRMED, emptySet())!!.toSet())
+
     /** Firebase Auth tells who is signed in; their profile comes from users/{uid}. */
     @OptIn(ExperimentalCoroutinesApi::class)
     override val session: StateFlow<SessionState> = signedInUid()
@@ -59,20 +68,26 @@ class FirebaseAuthRepository(
         .stateIn(scope, SharingStarted.Eagerly, SessionState.Loading)
 
     /**
-     * Emits the uid of the signed-in user (or null) every time it changes. An account whose email
-     * is not confirmed yet counts as signed out, so the app never shows its screens.
+     * Emits the uid of the signed-in user (or null) every time it changes. An account counts as
+     * signed out until its email is confirmed and its sign-in code entered, so the app never shows
+     * its screens before that.
      */
-    private fun signedInUid() = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.takeIf { user -> user.emailConfirmed() }?.uid) }
+    private fun signedInUid() = combine(firebaseUser(), codeConfirmed) { user, confirmed ->
+        user?.takeIf { it.emailConfirmed() && (it.isExempt() || it.uid in confirmed) }?.uid
+    }
+
+    private fun firebaseUser() = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
     /**
-     * Two steps: the password, then the email. Until the citizen or operator opens the link we sent
-     * to their inbox, signing in sends a new link and fails.
+     * Signing in has two factors: the password, then a 6-digit code that the relay (server/relay)
+     * emails. Before that, the email itself must be confirmed: until the link we sent is opened,
+     * signing in sends a new link and fails.
      */
-    override suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+    override suspend fun signIn(email: String, password: String): Result<Boolean> = runCatching {
         val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user!!
         if (!user.emailConfirmed()) {
             // Firebase limits how often it sends these emails; the earlier link still works then.
@@ -80,9 +95,31 @@ class FirebaseAuthRepository(
             auth.signOut()
             throw IllegalStateException("Confirm your email first: open the link we sent to ${user.email}")
         }
+        if (user.isExempt()) return@runCatching false
+        try {
+            Relay.call("sendCode", JSONObject())
+        } catch (e: Exception) {
+            auth.signOut()
+            throw IllegalStateException("Could not send the sign-in code. Check the connection and try again.")
+        }
+        true
     }
 
-    private fun FirebaseUser.emailConfirmed() = isEmailVerified || email in AppConfig.EMAIL_CONFIRMATION_EXEMPT
+    /** The relay made the code and checks it; the app never knows it. */
+    override suspend fun confirmSignInCode(code: String): Result<Unit> = runCatching {
+        val uid = auth.currentUser?.uid ?: error("Sign in again")
+        val ok = Relay.call("checkCode", JSONObject().put("code", code.trim())).getBoolean("ok")
+        require(ok) { "Wrong or expired code. Sign in again to get a new one." }
+        setCodeConfirmed(uid, true)
+    }
+
+    private fun setCodeConfirmed(uid: String, confirmed: Boolean) {
+        codeConfirmed.value = if (confirmed) codeConfirmed.value + uid else codeConfirmed.value - uid
+        codePrefs.edit { putStringSet(KEY_CONFIRMED, codeConfirmed.value) }
+    }
+
+    private fun FirebaseUser.isExempt() = email in AppConfig.EMAIL_CONFIRMATION_EXEMPT
+    private fun FirebaseUser.emailConfirmed() = isEmailVerified || isExempt()
 
     override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> = runCatching {
         register(form, UserRole.CITIZEN, AccountStatus.PENDING)
@@ -146,8 +183,15 @@ class FirebaseAuthRepository(
 
     /** Removes this phone's push address first, so it no longer gets this user's notifications. */
     override suspend fun signOut() {
-        auth.currentUser?.uid?.let { uid -> runCatching { users.document(uid).update("fcmToken", FieldValue.delete()).await() } }
+        auth.currentUser?.uid?.let { uid ->
+            runCatching { users.document(uid).update("fcmToken", FieldValue.delete()).await() }
+            setCodeConfirmed(uid, false) // the next sign-in asks for a new code
+        }
         auth.signOut()
+    }
+
+    private companion object {
+        const val KEY_CONFIRMED = "confirmed"
     }
 
     private suspend fun toBase64(uri: Uri) = withContext(Dispatchers.IO) {

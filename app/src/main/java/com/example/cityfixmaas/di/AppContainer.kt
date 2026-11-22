@@ -84,7 +84,7 @@ class FirebaseAppContainer(context: Context) : AppContainer {
     override val auth: AuthRepository = FirebaseAuthRepository(context, firebaseAuth, db, scope)
     override val userAdmin: UserAdminRepository = FirebaseUserAdminRepository(db)
     override val categories: CategoryRepository = FirebaseCategoryRepository(db)
-    private val push = PushSender(firebaseAuth)
+    private val push = PushSender()
 
     override val tickets: TicketRepository = FirebaseTicketRepository(context, firebaseAuth, db, push)
     override val media: MediaRepository = FirebaseMediaRepository(db)

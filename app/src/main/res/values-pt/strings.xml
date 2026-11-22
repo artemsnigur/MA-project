@@ -56,6 +56,9 @@
     <string name="action_forgot_password">Esqueceu-se da palavra-passe?</string>
     <string name="prompt_no_account">Não tem conta? Registe-se</string>
     <string name="prompt_has_account">Já tem conta? Inicie sessão</string>
+    <string name="sign_in_code_title">Introduza o código de acesso</string>
+    <string name="sign_in_code_desc">Enviámos um código de 6 dígitos para %1$s. É válido durante 10 minutos.</string>
+    <string name="label_sign_in_code">Código</string>
     <string name="forgot_password_title">Repor palavra-passe</string>
     <string name="forgot_password_desc">Introduza o seu email para enviarmos uma ligação de reposição de palavra-passe.</string>
 

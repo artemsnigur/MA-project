@@ -28,7 +28,7 @@ class FirebaseB3SmokeTest {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val messages = FirebaseMessageRepository(auth, db, PushSender(auth))
+    private val messages = FirebaseMessageRepository(auth, db, PushSender())
     private val publicData = FirebasePublicRepository(db)
 
     @Test
