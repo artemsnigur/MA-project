@@ -1,5 +1,11 @@
 package com.example.cityfixmaas.ui.tickets
 
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.cityfixmaas.data.model.LifecycleState
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,8 +49,17 @@ import kotlinx.coroutines.flow.stateIn
 /** Tickets of the signed-in citizen ("My incidents"), or all tickets for the operator panel. */
 class TicketListViewModel(tickets: TicketRepository, categories: CategoryRepository, allTickets: Boolean) : ViewModel() {
 
-    val tickets = (if (allTickets) tickets.observeAllTickets() else tickets.observeMyTickets())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** Operator panel filters; null = all. */
+    val stateFilter = MutableStateFlow<LifecycleState?>(null)
+    val categoryFilter = MutableStateFlow<String?>(null)
+
+    val tickets = combine(
+        if (allTickets) tickets.observeAllTickets() else tickets.observeMyTickets(),
+        stateFilter,
+        categoryFilter,
+    ) { list, state, category ->
+        list.filter { (state == null || it.lifecycleState == state) && (category == null || it.categoryId == category) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Category id → name, so the list shows names instead of ids. */
     val categoryNames = categories.observeCategories(activeOnly = false)
@@ -67,12 +82,30 @@ fun TicketListScreen(
 ) {
     val tickets by viewModel.tickets.collectAsStateWithLifecycle()
     val categoryNames by viewModel.categoryNames.collectAsStateWithLifecycle()
+    val stateFilter by viewModel.stateFilter.collectAsStateWithLifecycle()
+    val categoryFilter by viewModel.categoryFilter.collectAsStateWithLifecycle()
 
-    if (tickets.isEmpty()) {
+    if (tickets.isEmpty() && !allTickets) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.tickets_empty)) }
         return
     }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (allTickets) {
+            item {
+                // Tapping the selected chip again clears that filter.
+                FilterRow(
+                    options = LifecycleState.entries.map { it to stringResource(it.labelRes()) },
+                    selected = stateFilter,
+                    onSelect = { viewModel.stateFilter.value = it },
+                )
+                FilterRow(
+                    options = categoryNames.toList(),
+                    selected = categoryFilter,
+                    onSelect = { viewModel.categoryFilter.value = it },
+                )
+                if (tickets.isEmpty()) Text(stringResource(R.string.tickets_empty), Modifier.padding(top = 16.dp))
+            }
+        }
         // No item keys on purpose: with keys the list keeps the old first item in view, and a
         // ticket just created (it goes on top) would stay hidden above the screen.
         items(tickets) { ticket ->
@@ -81,6 +114,20 @@ fun TicketListScreen(
                 categoryName = categoryNames[ticket.categoryId] ?: ticket.categoryId,
                 showCoordinates = allTickets,
                 onClick = { onOpen(ticket.id) },
+            )
+        }
+    }
+}
+
+/** One horizontal row of filter chips; at most one is selected. */
+@Composable
+private fun <T> FilterRow(options: List<Pair<T, String>>, selected: T?, onSelect: (T?) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (value, label) ->
+            FilterChip(
+                selected = value == selected,
+                onClick = { onSelect(if (value == selected) null else value) },
+                label = { Text(label) },
             )
         }
     }
