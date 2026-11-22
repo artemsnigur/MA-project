@@ -16,7 +16,7 @@ object AppConfig {
     const val OPERATOR_GEOFENCE_METERS = 20.0
 
     /** Web app URL of the push relay (server/push-relay); push messages are off while it is empty. */
-    const val PUSH_RELAY_URL = ""
+    const val PUSH_RELAY_URL = "https://script.google.com/macros/s/AKfycbxE_AXzq5G8G4dy2nDGpvuFs1eQTGKRkC203Me_hGLdE077JeB4OhaNUDj6dDQS8v3X/exec"
 
     /** Category preselected when Impact Detection suggests a road defect report. */
     const val ROAD_CATEGORY_ID = "cat-roads"
