@@ -1,5 +1,7 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.example.cityfixmaas.push.PushSender
+import com.example.cityfixmaas.push.PushKind
 import kotlinx.coroutines.flow.combine
 import com.example.cityfixmaas.data.model.CreatedTicket
 import com.example.cityfixmaas.data.distanceTo
@@ -37,6 +39,7 @@ class FirebaseTicketRepository(
     private val context: Context,
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
+    private val push: PushSender,
 ) : TicketRepository {
 
     private val tickets = db.collection("tickets")
@@ -155,8 +158,9 @@ class FirebaseTicketRepository(
         moveTo(ticket, LifecycleState.INFORMATION_REQUEST, uid, question.trim())
     }
 
-    override suspend fun markOperatorNearby(ticketId: String) {
-        tickets.document(ticketId).update("operatorNearbyAt", System.currentTimeMillis()) // not awaited: works offline
+    override suspend fun markOperatorNearby(ticket: Ticket) {
+        tickets.document(ticket.id).update("operatorNearbyAt", System.currentTimeMillis()) // not awaited: works offline
+        push.toCitizens(ticket, PushKind.NEARBY)
     }
 
     override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
@@ -168,7 +172,7 @@ class FirebaseTicketRepository(
     /** Writes the new state, its history entry and the public copy in one batch. */
     private fun moveTo(ticket: Ticket, to: LifecycleState, uid: String, note: String?) {
         val now = System.currentTimeMillis()
-        val changes = mutableMapOf<String, Any?>("lifecycleState" to to.name, "updatedAt" to now, "stateChangedBy" to uid)
+        val changes = mutableMapOf<String, Any?>("lifecycleState" to to.name, "updatedAt" to now)
         if (to == LifecycleState.RESOLVED) changes["resolvedAt"] = now
         if (to == LifecycleState.OPEN) changes["resolvedAt"] = null // reopened: not resolved any more
         val change = StateChange(UUID.randomUUID().toString(), ticket.lifecycleState, to, uid, now, note)
@@ -177,8 +181,12 @@ class FirebaseTicketRepository(
         val batch = db.batch()
         batch.update(ticketRef, changes)
         batch.set(ticketRef.collection("history").document(change.id), change)
-        if (ticket.publicScope) batch.update(publicTickets.document(ticket.id), changes - "updatedAt" - "stateChangedBy")
+        if (ticket.publicScope) batch.update(publicTickets.document(ticket.id), changes - "updatedAt")
         batch.commit() // not awaited: works offline
+
+        // Tell the other side: a citizen's change (reopen, question) goes to the operators, an operator's to the citizens.
+        val byCitizen = uid == ticket.authorId || uid in ticket.followerIds
+        if (byCitizen) push.toOperators(ticket, PushKind.STATE, to) else push.toCitizens(ticket, PushKind.STATE, to)
     }
 
     override suspend fun addResolutionPhotos(ticketId: String, photoUris: List<Uri>): Result<Unit> = runCatching {

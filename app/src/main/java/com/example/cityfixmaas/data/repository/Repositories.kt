@@ -101,7 +101,7 @@ interface TicketRepository {
     suspend fun requestInformation(ticketId: String, question: String): Result<Unit>
 
     /** Operator only: records that the operator is within 20 m of this ticket now (see OperatorGeofence). */
-    suspend fun markOperatorNearby(ticketId: String)
+    suspend fun markOperatorNearby(ticket: Ticket)
 
     /**
      * Closes the given tickets that were resolved more than 5 days ago. There is no server code

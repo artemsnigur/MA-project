@@ -1,5 +1,6 @@
 package com.example.cityfixmaas
 
+import com.example.cityfixmaas.push.PushRegistration
 import android.app.Application
 import com.example.cityfixmaas.di.AppContainer
 import com.example.cityfixmaas.di.FakeAppContainer
@@ -18,6 +19,7 @@ class CityFixApp : Application() {
     override fun onCreate() {
         super.onCreate()
         watcher.start(MainScope()) // lives as long as the app process
+        if (USE_FIREBASE) PushRegistration.start(MainScope(), container.auth.session)
         TicketCheckWorker.schedule(this)
     }
 

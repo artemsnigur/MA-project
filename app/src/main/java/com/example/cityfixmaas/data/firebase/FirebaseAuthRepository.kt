@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.google.firebase.firestore.FieldValue
 import com.example.cityfixmaas.data.AppConfig
 import com.google.firebase.auth.FirebaseUser
 import android.content.Context
@@ -143,7 +144,9 @@ class FirebaseAuthRepository(
         users.document(uid).update(changes).await()
     }
 
+    /** Removes this phone's push address first, so it no longer gets this user's notifications. */
     override suspend fun signOut() {
+        auth.currentUser?.uid?.let { uid -> runCatching { users.document(uid).update("fcmToken", FieldValue.delete()).await() } }
         auth.signOut()
     }
 

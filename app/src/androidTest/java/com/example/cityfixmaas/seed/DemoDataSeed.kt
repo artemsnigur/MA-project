@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.seed
 
+import com.example.cityfixmaas.push.PushSender
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -49,8 +50,8 @@ class DemoDataSeed {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val tickets = FirebaseTicketRepository(context, auth, db)
-    private val messages = FirebaseMessageRepository(auth, db)
+    private val tickets = FirebaseTicketRepository(context, auth, db, PushSender(auth))
+    private val messages = FirebaseMessageRepository(auth, db, PushSender(auth))
     private val day = 24 * 3_600_000L
 
     private class Demo(

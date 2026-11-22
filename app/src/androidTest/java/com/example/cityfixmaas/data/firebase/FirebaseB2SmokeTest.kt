@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.example.cityfixmaas.push.PushSender
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -41,7 +42,7 @@ class FirebaseB2SmokeTest {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val tickets = FirebaseTicketRepository(context, auth, db)
+    private val tickets = FirebaseTicketRepository(context, auth, db, PushSender(auth))
     private val media = FirebaseMediaRepository(db)
 
     @Test

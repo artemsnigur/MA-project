@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.example.cityfixmaas.push.PushSender
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.PublicTicket
@@ -27,7 +28,7 @@ class FirebaseB3SmokeTest {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val messages = FirebaseMessageRepository(auth, db)
+    private val messages = FirebaseMessageRepository(auth, db, PushSender(auth))
     private val publicData = FirebasePublicRepository(db)
 
     @Test

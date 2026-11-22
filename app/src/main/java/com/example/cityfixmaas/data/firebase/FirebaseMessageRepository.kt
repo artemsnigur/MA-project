@@ -1,5 +1,9 @@
 package com.example.cityfixmaas.data.firebase
 
+import com.example.cityfixmaas.data.model.UserRole
+import com.example.cityfixmaas.data.model.Ticket
+import com.example.cityfixmaas.push.PushSender
+import com.example.cityfixmaas.push.PushKind
 import com.example.cityfixmaas.data.model.Message
 import com.example.cityfixmaas.data.model.User
 import com.example.cityfixmaas.data.repository.MessageRepository
@@ -13,8 +17,12 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
-/** Chat between the ticket's author and the operators, in tickets/{id}/messages. */
-class FirebaseMessageRepository(private val auth: FirebaseAuth, private val db: FirebaseFirestore) : MessageRepository {
+/** Chat between the ticket's citizens and the operators, in tickets/{id}/messages. */
+class FirebaseMessageRepository(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore,
+    private val push: PushSender,
+) : MessageRepository {
 
     private fun messages(ticketId: String) = db.collection("tickets").document(ticketId).collection("messages")
 
@@ -29,12 +37,10 @@ class FirebaseMessageRepository(private val auth: FirebaseAuth, private val db: 
         // The role decides how the message is shown (operator messages are highlighted).
         val sender = db.collection("users").document(uid).get().await().toObject<User>() ?: error("Profile not found")
         val ref = messages(ticketId).document() // new random id
-        val now = System.currentTimeMillis()
-        val batch = db.batch() // not awaited: works offline
-        batch.set(ref, Message(ref.id, uid, sender.role, text.trim(), now))
-        // Lets the other side notice the new message from the ticket alone (see TicketWatcher).
-        batch.update(db.collection("tickets").document(ticketId), mapOf("lastMessageAt" to now, "lastMessageRole" to sender.role.name))
-        batch.commit()
-        Unit
+        ref.set(Message(ref.id, uid, sender.role, text.trim(), System.currentTimeMillis())) // not awaited: works offline
+
+        // Push to the other side: operator -> the ticket's citizens, citizen -> the operators.
+        val ticket = db.collection("tickets").document(ticketId).get().await().toObject<Ticket>() ?: return@runCatching
+        if (sender.role == UserRole.OPERATOR) push.toCitizens(ticket, PushKind.MESSAGE) else push.toOperators(ticket, PushKind.MESSAGE)
     }
 }
