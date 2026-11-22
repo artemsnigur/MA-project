@@ -1,5 +1,7 @@
 package com.example.cityfixmaas.data.model
 
+import com.example.cityfixmaas.data.AppConfig
+
 import android.net.Uri
 
 // Firestore maps documents to these classes with toObject(), which needs a no-arg constructor:
@@ -46,14 +48,19 @@ data class MediaRef(
     val phase: MediaPhase = MediaPhase.REPORT,
     val uploadState: UploadState = UploadState.PENDING,
     val createdAt: Long = 0,
+    val type: MediaType = MediaType.PHOTO,
+    /** uid of the citizen or operator who added it; only their phone holds the file to upload. */
+    val addedBy: String = "",
 )
 
 /** Full-size photo, stored in `tickets/{ticketId}/media/{id}`, one document per photo (1 MiB limit). */
 data class MediaContent(
     val id: String = "",
     val ticketId: String = "",
-    /** Compressed JPEG (max 1280 px) encoded as Base64. */
+    /** Compressed JPEG (max 1280 px) encoded as Base64; for a video, its first frame. */
     val imageBase64: String = "",
+    /** Download link of the compressed MP4 in Google Drive (see VideoSize), only for videos. */
+    val videoUrl: String? = null,
     val phase: MediaPhase = MediaPhase.REPORT,
     val createdAt: Long = 0,
 )
@@ -61,8 +68,8 @@ data class MediaContent(
 /** Stored in `tickets/{id}`. Readable by its authors and operators only. */
 data class Ticket(
     val id: String = "",
-    /** Several authors when duplicate reports are aggregated into a group ticket (P1). */
-    val authorIds: List<String> = emptyList(),
+    /** uid of the citizen who reported it. */
+    val authorId: String = "",
     val categoryId: String = "",
     val incidentType: IncidentType = IncidentType.DAMAGE,
     val lifecycleState: LifecycleState = LifecycleState.OPEN,
@@ -73,7 +80,19 @@ data class Ticket(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val resolvedAt: Long? = null,
-)
+    /** Other citizens who reported the same problem (see AppConfig.DUPLICATE_RADIUS_METERS); they follow the ticket too. */
+    val followerIds: List<String> = emptyList(),
+    /** Last time an operator was within 20 m while the ticket was in resolution (the citizens got a push). */
+    val operatorNearbyAt: Long = 0,
+) {
+    /** The author may reopen a resolved ticket during the first 5 days. */
+    fun canReopen(now: Long): Boolean =
+        lifecycleState == LifecycleState.RESOLVED && resolvedAt != null && now - resolvedAt <= AppConfig.REOPEN_WINDOW_MS
+
+    /** Resolved for more than 5 days without a contest: it must be closed. */
+    fun isReopenExpired(now: Long): Boolean =
+        lifecycleState == LifecycleState.RESOLVED && resolvedAt != null && now - resolvedAt > AppConfig.REOPEN_WINDOW_MS
+}
 
 /**
  * Stored in `publicTickets/{id}` for public tickets only. Safe for anonymous users:
@@ -116,6 +135,9 @@ data class DashboardStats(
     /** Average of resolvedAt - createdAt over resolved tickets; null when none is resolved yet. */
     val averageRepairHours: Double? = null,
 )
+
+/** Result of reporting: the new ticket, or the existing one the report joined. */
+data class CreatedTicket(val id: String, val joinedExisting: Boolean)
 
 // ---- Inputs from the UI (not stored as-is) ----
 

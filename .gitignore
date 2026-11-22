@@ -5,6 +5,7 @@
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
+/.idea/deviceManager.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
@@ -16,3 +17,4 @@ local.properties
 
 # IDE settings differ per machine; Android Studio regenerates them
 .idea/
+docs/report.html

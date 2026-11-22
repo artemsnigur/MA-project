@@ -1,0 +1,56 @@
+package com.example.cityfixmaas.ui.navigation
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.cityfixmaas.data.model.AccountStatus
+import com.example.cityfixmaas.data.model.SessionState
+import com.example.cityfixmaas.data.model.UserRole
+import com.example.cityfixmaas.data.repository.AuthRepository
+import com.example.cityfixmaas.di.appContainer
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+/** Which set of screens the app shows. */
+enum class AppMode { ANONYMOUS, PENDING_CITIZEN, CITIZEN, OPERATOR }
+
+/** Watches who is signed in and turns it into an [AppMode] for [AppShell]. */
+class SessionViewModel(private val auth: AuthRepository) : ViewModel() {
+
+    /** Null while Firebase is still restoring the session (show a spinner). */
+    val mode: StateFlow<AppMode?> = auth.session
+        .map { toMode(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, toMode(auth.session.value))
+
+    /** Active citizens who turned Impact Detection on (at registration or in the profile). */
+    val impactDetection: StateFlow<Boolean> = auth.session
+        .map { session ->
+            val user = (session as? SessionState.SignedIn)?.user
+            user != null && user.role == UserRole.CITIZEN && user.status == AccountStatus.ACTIVE && user.impactDetectionEnabled
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun signOut() {
+        viewModelScope.launch { auth.signOut() }
+    }
+
+    private fun toMode(session: SessionState): AppMode? = when (session) {
+        SessionState.Loading -> null
+        SessionState.Anonymous -> AppMode.ANONYMOUS
+        is SessionState.SignedIn -> when {
+            session.user.role == UserRole.OPERATOR -> AppMode.OPERATOR
+            session.user.status == AccountStatus.PENDING -> AppMode.PENDING_CITIZEN
+            else -> AppMode.CITIZEN
+        }
+    }
+
+    companion object {
+        val Factory = viewModelFactory {
+            initializer { SessionViewModel(appContainer().auth) }
+        }
+    }
+}

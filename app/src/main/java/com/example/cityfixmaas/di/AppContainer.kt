@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.di
 
+import com.example.cityfixmaas.push.PushSender
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -15,10 +16,12 @@ import com.example.cityfixmaas.data.fake.FakeTicketRepository
 import com.example.cityfixmaas.data.fake.FakeUserAdminRepository
 import com.example.cityfixmaas.data.firebase.FirebaseAuthRepository
 import com.example.cityfixmaas.data.firebase.FirebaseCategoryRepository
+import com.example.cityfixmaas.data.firebase.FirebaseMediaRepository
+import com.example.cityfixmaas.data.firebase.FirebaseMessageRepository
+import com.example.cityfixmaas.data.firebase.FirebasePublicRepository
+import com.example.cityfixmaas.data.firebase.FirebaseTicketRepository
 import com.example.cityfixmaas.data.firebase.FirebaseUserAdminRepository
-import com.example.cityfixmaas.data.media.ImageCompressor
-import com.example.cityfixmaas.data.model.SessionState
-import com.example.cityfixmaas.data.model.UserRole
+import com.example.cityfixmaas.data.location.FusedLocationProvider
 import com.example.cityfixmaas.data.repository.AuthRepository
 import com.example.cityfixmaas.data.repository.CategoryRepository
 import com.example.cityfixmaas.data.repository.LocationProvider
@@ -32,10 +35,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 /**
  * Manual dependency injection: one place that decides which implementation each repository uses.
@@ -62,7 +61,7 @@ interface AppContainer {
     val location: LocationProvider
 }
 
-/** In-memory data for UI development. Firebase implementations replace these one by one (B1–B3). */
+/** In-memory data, handy for trying screens without Firebase (CityFixApp.USE_FIREBASE = false). */
 class FakeAppContainer : AppContainer {
     private val backend = FakeBackend()
 
@@ -76,39 +75,22 @@ class FakeAppContainer : AppContainer {
     override val location: LocationProvider = FakeLocationProvider()
 }
 
-/**
- * Firebase-backed data. B1 covers auth, users and categories; tickets, media, public data,
- * messages and location are still fakes until B2–B3, so do not switch [CityFixApp] to this
- * container for normal UI work yet (signed-in Firebase users are unknown to the fake tickets).
- */
+/** Real data: Firebase Auth + Firestore, and the phone's GPS. */
 class FirebaseAppContainer(context: Context) : AppContainer {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val firebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val images = ImageCompressor(context.applicationContext)
-    private val fakes = FakeBackend()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val firebaseCategories = FirebaseCategoryRepository(db)
-
-    override val auth: AuthRepository = FirebaseAuthRepository(firebaseAuth, db, images, scope)
+    override val auth: AuthRepository = FirebaseAuthRepository(context, firebaseAuth, db, scope)
     override val userAdmin: UserAdminRepository = FirebaseUserAdminRepository(db)
-    override val categories: CategoryRepository = firebaseCategories
-    override val tickets: TicketRepository = FakeTicketRepository(fakes) // B2
-    override val media: MediaRepository = FakeMediaRepository(fakes) // B2
-    override val publicData: PublicRepository = FakePublicRepository(fakes) // B3
-    override val messages: MessageRepository = FakeMessageRepository(fakes) // B3
-    override val location: LocationProvider = FakeLocationProvider() // B3
+    override val categories: CategoryRepository = FirebaseCategoryRepository(db)
+    private val push = PushSender()
 
-    init {
-        // Default categories are created by the first operator who signs in.
-        scope.launch {
-            auth.session
-                .map { (it as? SessionState.SignedIn)?.user?.role == UserRole.OPERATOR }
-                .distinctUntilChanged()
-                .filter { it }
-                .collect { firebaseCategories.seedDefaultsIfEmpty() }
-        }
-    }
+    override val tickets: TicketRepository = FirebaseTicketRepository(context, firebaseAuth, db, push)
+    override val media: MediaRepository = FirebaseMediaRepository(db)
+    override val publicData: PublicRepository = FirebasePublicRepository(db)
+    override val messages: MessageRepository = FirebaseMessageRepository(firebaseAuth, db, push)
+    override val location: LocationProvider = FusedLocationProvider(context)
 }
 
 /** Access the container inside `viewModelFactory { initializer { ... } }`. */

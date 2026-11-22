@@ -1,3 +1,176 @@
 <resources>
-    <string name="app_name">CityFixMAAS</string>
+    <string name="app_name" translatable="false">CityFix</string>
+
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_incidents">Incidents</string>
+    <string name="title_incident_detail">Incident details</string>
+    <string name="title_login">Sign in</string>
+    <string name="title_register">Register</string>
+    <string name="title_my_incidents">My incidents</string>
+    <string name="title_report_incident">New incident</string>
+    <string name="title_profile">Profile</string>
+    <string name="title_account_pending">Account pending</string>
+    <string name="title_panel">Operations panel</string>
+    <string name="title_pending">Pending citizens</string>
+    <string name="title_categories">Categories</string>
+
+    <string name="cd_back">Back</string>
+    <string name="cd_dashboard">Dashboard</string>
+    <string name="cd_incident_list">Public incidents</string>
+    <string name="cd_login">Sign in</string>
+    <string name="cd_sign_out">Sign out</string>
+    <string name="cd_profile">Profile</string>
+    <string name="cd_pending">Pending registrations</string>
+    <string name="cd_categories">Categories</string>
+    <string name="cd_show_password">Show password</string>
+    <string name="cd_hide_password">Hide password</string>
+    <string name="cd_incident_thumbnail">Incident photo</string>
+    <string name="fab_new_incident">New incident</string>
+
+    <!-- Validation -->
+    <string name="validation_required">This field is required</string>
+    <string name="validation_email_invalid">Enter a valid email</string>
+    <string name="validation_email_not_municipal">Operators must use an @cm-coimbra.pt email</string>
+    <string name="validation_password_short">Password must have at least 6 characters</string>
+    <string name="validation_password_mismatch">Passwords do not match</string>
+    <string name="validation_phone_invalid">Phone must have 9 digits</string>
+    <string name="validation_nif_invalid">Enter a valid 9-digit NIF</string>
+    <string name="validation_location_required">Location is required for citizen accounts</string>
+
+    <!-- Auth & Forms -->
+    <string name="label_email">Email</string>
+    <string name="label_password">Password</string>
+    <string name="label_confirm_password">Confirm password</string>
+    <string name="label_name">Full name</string>
+    <string name="label_phone">Phone number</string>
+    <string name="label_nif">NIF</string>
+    <string name="label_role">Role</string>
+    <string name="label_status">Status</string>
+    <string name="label_location">Registration location</string>
+    <string name="label_impact_detection">Automatic impact detection</string>
+    <string name="role_citizen">Citizen</string>
+    <string name="role_operator">Operator</string>
+    <string name="action_sign_in">Sign in</string>
+    <string name="action_register">Register</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_send">Send</string>
+    <string name="action_save">Save changes</string>
+    <string name="action_forgot_password">Forgot password?</string>
+    <string name="prompt_no_account">Don\'t have an account? Register</string>
+    <string name="prompt_has_account">Already have an account? Sign in</string>
+    <string name="sign_in_code_title">Enter the sign-in code</string>
+    <string name="sign_in_code_desc">We sent a 6-digit code to %1$s. It is valid for 10 minutes.</string>
+    <string name="label_sign_in_code">Code</string>
+    <string name="forgot_password_title">Reset password</string>
+    <string name="forgot_password_desc">Enter your email and we will send a password reset link.</string>
+
+    <!-- Account Pending -->
+    <string name="pending_title">Account Pending Approval</string>
+    <string name="pending_desc">Your citizen registration has been submitted and is awaiting approval by a municipal operator. You will be able to access the app once activated.</string>
+
+    <!-- Profile -->
+    <string name="action_change_photo">Change photo</string>
+    <string name="profile_updated_success">Profile updated successfully</string>
+    <string name="location_captured">Location captured: %1$.4f, %2$.4f</string>
+    <string name="location_not_set">Location not set</string>
+    <string name="capture_location">Capture location</string>
+    <string name="status_active">Active</string>
+    <string name="status_pending">Pending</string>
+    <string name="cd_profile_photo">Profile photo</string>
+    <string name="tickets_empty">No incidents yet</string>
+    <string name="report_category">Category</string>
+    <string name="report_type">Type</string>
+    <string name="report_description">Description</string>
+    <string name="report_public">Public (everyone can see it, without your name)</string>
+    <string name="report_photos_selected">Photos and videos selected: %1$d</string>
+    <string name="report_send">Send</string>
+    <string name="detail_public">Public</string>
+    <string name="detail_private">Private</string>
+    <string name="detail_photos">Photos and videos</string>
+    <string name="detail_change_state">Change state</string>
+    <string name="detail_add_resolution_photos">Add photos or videos of the completed work</string>
+    <string name="detail_history">History</string>
+    <string name="photo_uploading">Uploading…</string>
+    <string name="photo_failed">Upload failed</string>
+    <string name="photo_resolution">Resolution</string>
+    <string name="pending_empty">No citizens waiting for activation</string>
+    <string name="pending_details">Phone %1$s · NIF %2$s</string>
+    <string name="pending_activate">Activate</string>
+    <string name="state_open">Open</string>
+    <string name="state_information_request">Information requested</string>
+    <string name="state_in_resolution">In resolution</string>
+    <string name="state_resolved">Resolved</string>
+    <string name="state_closed">Closed</string>
+    <string name="type_damage">Damage</string>
+    <string name="type_breakdown">Breakdown</string>
+    <string name="type_destruction">Destruction</string>
+    <string name="type_theft">Theft</string>
+
+    <!-- F2: Incident Reporting & Details -->
+    <string name="report_camera">Take photo</string>
+    <string name="report_pick_photos">Gallery</string>
+    <string name="report_location_captured">Location: %1$.4f, %2$.4f</string>
+    <string name="report_location_detecting">Detecting location…</string>
+    <string name="report_location_refresh">Refresh location</string>
+    <string name="report_error_photos">At least one photo or video is required</string>
+    <string name="report_remove_photo">Remove photo</string>
+    <string name="detail_messages">Messages</string>
+    <string name="message_hint">Write a message…</string>
+    <string name="message_send">Send message</string>
+    <string name="message_operator_badge">Operator</string>
+    <string name="message_citizen_badge">Citizen</string>
+    <string name="messages_empty">No messages yet. Send a message to communicate about this incident.</string>
+
+    <!-- F3: Operator & Anonymous -->
+    <string name="author_contact">Author: %1$s · %2$s · %3$s</string>
+    <string name="exact_coordinates">Coords: %1$.5f, %2$.5f</string>
+    <string name="dialog_state_change_title">Change incident state</string>
+    <string name="dialog_state_note_label">Note / remarks (optional)</string>
+    <string name="dialog_state_confirm">Confirm state change</string>
+    <string name="categories_empty">No categories created yet</string>
+    <string name="category_add">New category</string>
+    <string name="category_edit">Edit category</string>
+    <string name="category_name_label">Category name</string>
+    <string name="category_active">Active</string>
+    <string name="category_inactive">Inactive</string>
+    <string name="pending_location">Location: %1$.4f, %2$.4f</string>
+    <string name="gate_checking_location">Verifying your location in Coimbra…</string>
+    <string name="gate_blocked_title">Outside Municipal Area</string>
+    <string name="gate_blocked_desc">Public anonymous browsing is only available within 10 km of Coimbra city centre (Praça da República). Please sign in to access your account from anywhere.</string>
+    <string name="gate_retry_location">Check location again</string>
+    <string name="dashboard_total_tickets">Total Incidents</string>
+    <string name="dashboard_active_percent">Active Incidents</string>
+    <string name="dashboard_avg_repair_hours">Average Repair Time</string>
+    <string name="dashboard_hours_unit">hours</string>
+    <string name="dashboard_no_repairs_yet">None yet</string>
+    <string name="dashboard_view_public_list">View public incidents</string>
+    <string name="approx_location">Approx. location: %1$.2f, %2$.2f</string>
+    <string name="notif_channel_name">Incident updates</string>
+    <string name="notif_state_changed">Incident is now: %1$s</string>
+    <string name="notif_new_message">New message about an incident</string>
+    <string name="notif_close_reminder">Closes in 24 hours unless you reopen it</string>
+    <string name="detail_reopen">Reopen</string>
+    <string name="detail_reopen_until">Not solved? You can reopen it until %1$s.</string>
+    <string name="dialog_reopen_title">Reopen incident</string>
+    <string name="dialog_reopen_label">Why is the problem not solved? *</string>
+    <string name="detail_closed_locked">This incident is closed and can no longer be changed.</string>
+    <string name="report_joined_existing">This problem was already reported nearby. You now follow that incident.</string>
+    <string name="detail_followers">Also reported by other citizens: %1$d</string>
+    <string name="impact_dialog_title">Possible pothole</string>
+    <string name="impact_dialog_text">A hard jolt was detected. Report a road defect here?</string>
+    <string name="impact_dialog_report">Report</string>
+    <string name="impact_dialog_ignore">Not now</string>
+    <string name="detail_request_info">Ask the municipality</string>
+    <string name="dialog_request_info_title">Request information</string>
+    <string name="dialog_request_info_label">Your question *</string>
+    <string name="notif_operator_nearby">A municipal team is at your incident</string>
+    <string name="register_confirm_email_title">Confirm your email</string>
+    <string name="register_confirm_email_text">We sent a confirmation link to %1$s. Open it, then sign in.</string>
+    <string name="register_confirm_email_ok">Go to sign in</string>
+    <string name="report_record_video">Record video</string>
+    <string name="cd_video">Video</string>
+    <string name="cd_play_video">Play video</string>
+    <string name="monitoring_channel">Background monitoring</string>
+    <string name="monitoring_citizen">Impact Detection is on: watching the road for potholes</string>
+    <string name="monitoring_operator">Sharing your location with residents of incidents in resolution</string>
 </resources>

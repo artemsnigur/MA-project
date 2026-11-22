@@ -1,5 +1,6 @@
 package com.example.cityfixmaas.data.fake
 
+import com.example.cityfixmaas.data.model.CreatedTicket
 import android.net.Uri
 import com.example.cityfixmaas.data.AppConfig
 import com.example.cityfixmaas.data.distanceTo
@@ -33,7 +34,6 @@ import com.example.cityfixmaas.data.repository.PublicRepository
 import com.example.cityfixmaas.data.repository.TicketRepository
 import com.example.cityfixmaas.data.repository.UserAdminRepository
 import com.example.cityfixmaas.data.roundedForPublic
-import com.example.cityfixmaas.data.validation.Validation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,14 +56,18 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
             if (user == null) SessionState.Anonymous else SessionState.SignedIn(user)
         }.stateIn(backend.scope, SharingStarted.Eagerly, SessionState.Anonymous)
 
-    override suspend fun signIn(email: String, password: String): Result<Unit> {
+    /** No sign-in code in demo mode. */
+    override suspend fun signIn(email: String, password: String): Result<Boolean> {
         latency()
         return attempt {
             val user = backend.users.value.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
             require(user != null && backend.passwords[user.email] == password) { "Wrong email or password" }
             backend.currentUid.value = user.id
+            false
         }
     }
+
+    override suspend fun confirmSignInCode(code: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun registerCitizen(form: RegistrationForm): Result<Unit> {
         latency()
@@ -75,16 +79,14 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         return attempt { register(form.copy(location = null), UserRole.OPERATOR, AccountStatus.ACTIVE) }
     }
 
-    /** Same validation and error messages as the Firebase implementation. */
     private fun register(form: RegistrationForm, role: UserRole, status: AccountStatus) {
-        Validation.registration(form, role)?.let { throw IllegalArgumentException(it) }
         val email = form.email.trim().lowercase()
         val users = backend.users.value.values
         require(users.none { it.email == email }) { "This email is already registered" }
         require(users.none { it.role == role && it.nif == form.nif }) { "This NIF is already registered" }
         val user = User(
             id = newId(), role = role, status = status, name = form.name.trim(), email = email,
-            phone = Validation.normalizePhone(form.phone), nif = form.nif.trim(), location = form.location,
+            phone = form.phone.trim(), nif = form.nif.trim(), location = form.location,
             photoBase64 = form.photoUri?.let { SAMPLE_IMAGE_BASE64 },
             impactDetectionEnabled = form.impactDetectionEnabled, createdAt = now(),
         )
@@ -98,13 +100,13 @@ class FakeAuthRepository(private val backend: FakeBackend) : AuthRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit> {
+    override suspend fun updateProfile(phone: String, photoUri: Uri?, impactDetectionEnabled: Boolean): Result<Unit> {
         latency()
         return attempt {
             val user = backend.requireUser()
-            Validation.phone(phone)?.let { throw IllegalArgumentException(it) }
             val updated = user.copy(
-                phone = Validation.normalizePhone(phone),
+                phone = phone.trim(),
+                impactDetectionEnabled = impactDetectionEnabled,
                 photoBase64 = if (photoUri != null) SAMPLE_IMAGE_BASE64 else user.photoBase64,
             )
             backend.users.update { it + (user.id to updated) }
@@ -167,7 +169,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
 
     override fun observeMyTickets(): Flow<List<Ticket>> =
         combine(backend.tickets, backend.currentUid) { tickets, uid ->
-            tickets.values.filter { uid != null && uid in it.authorIds }.sortedByDescending { it.createdAt }
+            tickets.values.filter { it.authorId == uid || uid in it.followerIds }.sortedByDescending { it.createdAt }
         }
 
     override fun observeAllTickets(): Flow<List<Ticket>> =
@@ -178,7 +180,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
     override fun observeHistory(ticketId: String): Flow<List<StateChange>> =
         backend.history.map { it[ticketId].orEmpty().sortedBy { change -> change.at } }
 
-    override suspend fun createTicket(draft: TicketDraft): Result<String> {
+    override suspend fun createTicket(draft: TicketDraft): Result<CreatedTicket> {
         latency()
         return attempt {
             val user = backend.requireUser()
@@ -189,11 +191,23 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             require(draft.photoUris.isNotEmpty()) { "Add at least one photo" }
             require(backend.categories.value[draft.categoryId]?.active == true) { "Choose an active category" }
 
+            val duplicate = backend.tickets.value.values.firstOrNull {
+                it.categoryId == draft.categoryId && it.incidentType == draft.incidentType && it.lifecycleState.isActive &&
+                    it.location.distanceTo(draft.location) <= AppConfig.DUPLICATE_RADIUS_METERS
+            }
+            if (duplicate != null) {
+                val photos = draft.photoUris.map { newMedia(duplicate.id, MediaPhase.REPORT, now()) }
+                val followers = if (duplicate.authorId == user.id) duplicate.followerIds else (duplicate.followerIds + user.id).distinct()
+                backend.tickets.update { it + (duplicate.id to duplicate.copy(followerIds = followers, media = duplicate.media + photos.map { p -> p.first })) }
+                backend.media.update { it + (duplicate.id to it[duplicate.id].orEmpty() + photos.map { p -> p.second }) }
+                return@attempt CreatedTicket(duplicate.id, joinedExisting = true)
+            }
+
             val id = newId()
             val at = now()
             val photos = draft.photoUris.map { newMedia(id, MediaPhase.REPORT, at) }
             val ticket = Ticket(
-                id = id, authorIds = listOf(user.id), categoryId = draft.categoryId,
+                id = id, authorId = user.id, categoryId = draft.categoryId,
                 incidentType = draft.incidentType, lifecycleState = LifecycleState.OPEN,
                 publicScope = draft.publicScope, description = draft.description.trim(),
                 location = draft.location, media = photos.map { it.first },
@@ -202,7 +216,7 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
             backend.tickets.update { it + (id to ticket) }
             backend.media.update { it + (id to photos.map { p -> p.second }) }
             appendHistory(id, StateChange(newId(), null, LifecycleState.OPEN, user.id, at))
-            id
+            CreatedTicket(id, joinedExisting = false)
         }
     }
 
@@ -244,21 +258,42 @@ class FakeTicketRepository(private val backend: FakeBackend) : TicketRepository 
         }
     }
 
-    override suspend fun retryUploads(ticketId: String) {
-        latency()
-        backend.tickets.update { tickets ->
-            val ticket = tickets[ticketId] ?: return@update tickets
-            val media = ticket.media.map {
-                if (it.uploadState == UploadState.FAILED) it.copy(uploadState = UploadState.DONE) else it
-            }
-            tickets + (ticketId to ticket.copy(media = media))
-        }
-    }
-
     private fun newMedia(ticketId: String, phase: MediaPhase, at: Long): Pair<MediaRef, MediaContent> {
         val mediaId = newId()
         return MediaRef(mediaId, SAMPLE_IMAGE_BASE64, phase, UploadState.DONE, at) to
-            MediaContent(mediaId, ticketId, SAMPLE_IMAGE_BASE64, phase, at)
+            MediaContent(mediaId, ticketId, SAMPLE_IMAGE_BASE64, null, phase, at)
+    }
+
+    override suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit> = attempt {
+        require(justification.isNotBlank()) { "Explain why the problem is not solved" }
+        val user = backend.requireUser()
+        val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
+        require(ticket.authorId == user.id || user.id in ticket.followerIds) { "Only the citizens who reported it can reopen the ticket" }
+        require(ticket.canReopen(now())) { "The 5 days to reopen have passed" }
+        backend.tickets.update { it + (ticketId to ticket.copy(lifecycleState = LifecycleState.OPEN, resolvedAt = null, updatedAt = now())) }
+        appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.OPEN, user.id, now(), justification.trim()))
+    }
+
+    override suspend fun requestInformation(ticketId: String, question: String): Result<Unit> = attempt {
+        require(question.isNotBlank()) { "Write your question" }
+        val user = backend.requireUser()
+        val ticket = requireNotNull(backend.tickets.value[ticketId]) { "Ticket not found" }
+        require(ticket.authorId == user.id || user.id in ticket.followerIds) { "Only the citizens who reported it can ask" }
+        require(ticket.lifecycleState == LifecycleState.OPEN) { "Information can be requested only while the ticket is open" }
+        backend.tickets.update { it + (ticketId to ticket.copy(lifecycleState = LifecycleState.INFORMATION_REQUEST, updatedAt = now())) }
+        appendHistory(ticketId, StateChange(newId(), ticket.lifecycleState, LifecycleState.INFORMATION_REQUEST, user.id, now(), question.trim()))
+    }
+
+    override suspend fun markOperatorNearby(ticket: Ticket) {
+        backend.tickets.update { all -> all + (ticket.id to (all[ticket.id] ?: ticket).copy(operatorNearbyAt = now())) }
+    }
+
+    override suspend fun closeExpiredTickets(tickets: List<Ticket>) {
+        val user = backend.currentUser() ?: return
+        tickets.filter { it.isReopenExpired(now()) }.forEach { ticket ->
+            backend.tickets.update { it + (ticket.id to ticket.copy(lifecycleState = LifecycleState.CLOSED, updatedAt = now())) }
+            appendHistory(ticket.id, StateChange(newId(), ticket.lifecycleState, LifecycleState.CLOSED, user.id, now(), "Closed automatically after 5 days"))
+        }
     }
 
     private fun appendHistory(ticketId: String, change: StateChange) {

@@ -4,6 +4,7 @@ import android.net.Uri
 import com.example.cityfixmaas.data.model.Category
 import com.example.cityfixmaas.data.model.DashboardStats
 import com.example.cityfixmaas.data.model.LatLng
+import com.example.cityfixmaas.data.model.CreatedTicket
 import com.example.cityfixmaas.data.model.LifecycleState
 import com.example.cityfixmaas.data.model.MediaContent
 import com.example.cityfixmaas.data.model.Message
@@ -27,9 +28,20 @@ import kotlinx.coroutines.flow.StateFlow
 interface AuthRepository {
     val session: StateFlow<SessionState>
 
-    suspend fun signIn(email: String, password: String): Result<Unit>
+    /**
+     * First step of signing in: the password. Fails, and sends a new confirmation link, while the
+     * account's email is not confirmed. Returns true when a sign-in code was emailed: the user is
+     * signed in only after [confirmSignInCode].
+     */
+    suspend fun signIn(email: String, password: String): Result<Boolean>
 
-    /** Creates a PENDING citizen. Fails if the NIF is already registered for citizens. */
+    /** Second step: the 6-digit code from the email. A wrong code is used up; ask for a new one with [signIn]. */
+    suspend fun confirmSignInCode(code: String): Result<Unit>
+
+    /**
+     * Creates a PENDING citizen. Fails if the NIF is already registered for citizens.
+     * Registration sends a confirmation email and does not sign in (see signIn).
+     */
     suspend fun registerCitizen(form: RegistrationForm): Result<Unit>
 
     /** Creates an ACTIVE operator. Fails unless the email is in [AppConfig.MUNICIPAL_EMAIL_DOMAIN]. */
@@ -38,7 +50,7 @@ interface AuthRepository {
     suspend fun sendPasswordReset(email: String): Result<Unit>
 
     /** Name, NIF and location cannot be changed. Pass photoUri = null to keep the current photo. */
-    suspend fun updateProfile(phone: String, photoUri: Uri?): Result<Unit>
+    suspend fun updateProfile(phone: String, photoUri: Uri?, impactDetectionEnabled: Boolean): Result<Unit>
 
     suspend fun signOut()
 }
@@ -64,7 +76,7 @@ interface CategoryRepository {
 }
 
 interface TicketRepository {
-    /** Tickets the signed-in citizen authored, newest first. */
+    /** Tickets the signed-in citizen authored or follows, newest first. */
     fun observeMyTickets(): Flow<List<Ticket>>
 
     /** Every ticket, newest first. Operator only. */
@@ -77,9 +89,11 @@ interface TicketRepository {
 
     /**
      * Saves the ticket immediately (works offline) and queues photo processing.
-     * Returns the new ticket id. Photos show UploadState.PENDING until they are written.
+     * Photos show UploadState.PENDING until they are written.
+     * If an active ticket with the same category and type is within 10 m, the citizen joins it
+     * as a follower instead and no new ticket is created.
      */
-    suspend fun createTicket(draft: TicketDraft): Result<String>
+    suspend fun createTicket(draft: TicketDraft): Result<CreatedTicket>
 
     /**
      * Operator only. Fails if [to] is not in the current state's allowedNext(),
@@ -87,11 +101,23 @@ interface TicketRepository {
      */
     suspend fun changeState(ticketId: String, to: LifecycleState, note: String?): Result<Unit>
 
+    /** Author or follower: RESOLVED -> OPEN within 5 days of the resolution, with a mandatory justification. */
+    suspend fun reopenTicket(ticketId: String, justification: String): Result<Unit>
+
+    /** Author or follower: OPEN -> INFORMATION_REQUEST, asking the municipality a question (kept in the history). */
+    suspend fun requestInformation(ticketId: String, question: String): Result<Unit>
+
+    /** Operator only: records that the operator is within 20 m of this ticket now (see OperatorGeofence). */
+    suspend fun markOperatorNearby(ticket: Ticket)
+
+    /**
+     * Closes the given tickets that were resolved more than 5 days ago. There is no server code
+     * (Spark plan), so the apps of the author and of the operators do it when they see such a ticket.
+     */
+    suspend fun closeExpiredTickets(tickets: List<Ticket>)
+
     /** Operator evidence of completed work. Required before moving to RESOLVED. */
     suspend fun addResolutionPhotos(ticketId: String, photoUris: List<Uri>): Result<Unit>
-
-    /** Re-queues photos in UploadState.FAILED. */
-    suspend fun retryUploads(ticketId: String)
 }
 
 /** Full-size photos. Used by ticket details for authors, operators and (public tickets) anonymous users. */
