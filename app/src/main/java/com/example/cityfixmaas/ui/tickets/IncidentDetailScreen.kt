@@ -283,6 +283,7 @@ fun IncidentDetailScreen(
             title = stringResource(R.string.dialog_request_info_title),
             noteLabel = stringResource(R.string.dialog_request_info_label),
             noteRequired = true,
+            confirmLabel = stringResource(R.string.action_send),
             onConfirm = { question -> viewModel.requestInformation(question.orEmpty()); showQuestionDialog = false },
             onDismiss = { showQuestionDialog = false },
         )
@@ -292,6 +293,7 @@ fun IncidentDetailScreen(
             title = stringResource(R.string.dialog_reopen_title),
             noteLabel = stringResource(R.string.dialog_reopen_label),
             noteRequired = true,
+            confirmLabel = stringResource(R.string.detail_reopen),
             onConfirm = { note -> viewModel.reopen(note.orEmpty()); showReopenDialog = false },
             onDismiss = { showReopenDialog = false },
         )
@@ -327,6 +329,7 @@ private fun StateChangeDialog(
     noteRequired: Boolean,
     onConfirm: (note: String?) -> Unit,
     onDismiss: () -> Unit,
+    confirmLabel: String = stringResource(R.string.dialog_state_confirm),
 ) {
     var note by rememberSaveable { mutableStateOf("") }
     AlertDialog(
@@ -340,7 +343,7 @@ private fun StateChangeDialog(
                 minLines = 2,
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(note.ifBlank { null }) }, enabled = !noteRequired || note.isNotBlank()) { Text(stringResource(R.string.dialog_state_confirm)) } },
+        confirmButton = { TextButton(onClick = { onConfirm(note.ifBlank { null }) }, enabled = !noteRequired || note.isNotBlank()) { Text(confirmLabel) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }

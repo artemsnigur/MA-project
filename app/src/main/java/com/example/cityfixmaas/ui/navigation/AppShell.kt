@@ -180,7 +180,12 @@ fun AppShell(
                     LoginRoute(onNavigateToRegister = { navController.navigate(RegisterRoute) })
                 }
                 composable<RegisterRoute> {
-                    RegisterRoute(onNavigateToLogin = { navController.navigateUp() })
+                    RegisterRoute(
+                        onNavigateToLogin = {
+                            // Back to the sign-in screen; open it if registration was reached another way.
+                            if (!navController.popBackStack(LoginRoute, inclusive = false)) navController.navigate(LoginRoute)
+                        },
+                    )
                 }
                 composable<MyIncidentsRoute> {
                     TicketListScreen(allTickets = false, onOpen = { navController.navigate(IncidentDetailRoute(it)) })
